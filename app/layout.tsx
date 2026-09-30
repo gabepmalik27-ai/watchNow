@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { Header } from "@/components/layout/Header";
+import { UserStateProvider } from "@/lib/user-state";
 import "./globals.css";
 
 const inter = Inter({
@@ -22,9 +23,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} font-sans antialiased`}>
-        <Header />
-        <div className="pb-16 tablet:pb-0">{children}</div>
-        <BottomNav />
+        <UserStateProvider>
+          <Header />
+          <div className="pb-16 tablet:pb-0">{children}</div>
+          <BottomNav />
+        </UserStateProvider>
       </body>
     </html>
   );
