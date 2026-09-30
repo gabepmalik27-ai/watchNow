@@ -32,6 +32,9 @@ yarn-error.log*
 # Testing
 coverage/
 
+# TypeScript
+*.tsbuildinfo
+
 # Python (in case we use it for the recommender)
 __pycache__/
 *.py[cod]
