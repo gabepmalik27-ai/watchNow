@@ -1,0 +1,221 @@
+import type { Movie, UserProfile } from "@/types/movie";
+
+/**
+ * Hardcoded placeholder catalog. Field names mirror the eventual database
+ * schema (see types/movie.ts) — do not rename them. Nothing outside
+ * components may import from this file.
+ */
+export const placeholderMovies: Movie[] = [
+  {
+    id: 1,
+    title: "Dune",
+    release_year: 2021,
+    runtime_min: 155,
+    overview:
+      "A young heir travels to a dangerous desert planet to secure his family's future.",
+    vote_average: 8.0,
+    genres: ["Sci-Fi", "Adventure"],
+  },
+  {
+    id: 2,
+    title: "Poor Things",
+    release_year: 2023,
+    runtime_min: 141,
+    overview:
+      "A reanimated young woman sets off on a whirlwind adventure of self-discovery.",
+    vote_average: 8.0,
+    genres: ["Comedy", "Drama"],
+  },
+  {
+    id: 3,
+    title: "The Holdovers",
+    release_year: 2023,
+    runtime_min: 133,
+    overview:
+      "A grumpy teacher, a troubled student, and a grieving cook are stuck together over winter break.",
+    vote_average: 7.9,
+    genres: ["Comedy", "Drama"],
+  },
+  {
+    id: 4,
+    title: "Oppenheimer",
+    release_year: 2023,
+    runtime_min: 180,
+    overview:
+      "The story of the physicist who helped build the atomic bomb and lived with its consequences.",
+    vote_average: 8.3,
+    genres: ["Drama", "History"],
+  },
+  {
+    id: 5,
+    title: "Past Lives",
+    release_year: 2023,
+    runtime_min: 105,
+    overview:
+      "Childhood friends reunite in New York after decades apart to confront what might have been.",
+    vote_average: 7.8,
+    genres: ["Drama", "Romance"],
+  },
+  {
+    id: 6,
+    title: "Barbie",
+    release_year: 2023,
+    runtime_min: 114,
+    overview:
+      "A doll living in an idealized world sets out for the real world in search of true happiness.",
+    vote_average: 7.0,
+    genres: ["Comedy", "Fantasy"],
+  },
+  {
+    id: 7,
+    title: "Spider-Verse",
+    release_year: 2023,
+    runtime_min: 140,
+    overview:
+      "A teenage hero travels across the multiverse and meets an entire team of Spider-People.",
+    vote_average: 8.4,
+    genres: ["Animation", "Action"],
+  },
+  {
+    id: 8,
+    title: "The Martian",
+    release_year: 2015,
+    runtime_min: 144,
+    overview:
+      "An astronaut stranded on Mars must improvise a way to survive and signal for rescue.",
+    vote_average: 8.0,
+    genres: ["Sci-Fi", "Drama"],
+  },
+  {
+    id: 9,
+    title: "Interstellar",
+    release_year: 2014,
+    runtime_min: 169,
+    overview:
+      "Explorers travel through a wormhole in space to ensure humanity's survival.",
+    vote_average: 8.6,
+    genres: ["Sci-Fi", "Drama"],
+  },
+  {
+    id: 10,
+    title: "Knives Out",
+    release_year: 2019,
+    runtime_min: 130,
+    overview:
+      "A detective investigates the death of a patriarch amid a family full of suspects and secrets.",
+    vote_average: 7.9,
+    genres: ["Mystery", "Comedy"],
+  },
+  {
+    id: 11,
+    title: "La La Land",
+    release_year: 2016,
+    runtime_min: 128,
+    overview:
+      "An aspiring actress and a dedicated jazz musician fall in love while pursuing their dreams.",
+    vote_average: 8.0,
+    genres: ["Musical", "Romance"],
+  },
+  {
+    id: 12,
+    title: "Arrival",
+    release_year: 2016,
+    runtime_min: 116,
+    overview:
+      "A linguist is recruited to communicate with mysterious visitors before global panic escalates.",
+    vote_average: 7.9,
+    genres: ["Sci-Fi", "Drama"],
+  },
+  {
+    id: 13,
+    title: "Blade Runner",
+    release_year: 2017,
+    runtime_min: 164,
+    overview:
+      "A new blade runner unearths a secret that could plunge what's left of society into chaos.",
+    vote_average: 8.0,
+    genres: ["Sci-Fi", "Drama"],
+  },
+  {
+    id: 14,
+    title: "Her",
+    release_year: 2013,
+    runtime_min: 126,
+    overview:
+      "A lonely writer develops an unlikely relationship with an operating system designed to meet his needs.",
+    vote_average: 8.0,
+    genres: ["Romance", "Sci-Fi"],
+  },
+  {
+    id: 15,
+    title: "Everything Everywhere All at Once",
+    release_year: 2022,
+    runtime_min: 140,
+    overview:
+      "An overwhelmed woman discovers she must connect with parallel versions of herself to save the multiverse.",
+    vote_average: 8.0,
+    genres: ["Sci-Fi", "Comedy"],
+  },
+  {
+    id: 16,
+    title: "Inception",
+    release_year: 2010,
+    runtime_min: 148,
+    overview:
+      "A thief who steals secrets through dream infiltration is offered a chance to erase his past.",
+    vote_average: 8.8,
+    genres: ["Sci-Fi", "Action"],
+  },
+  {
+    id: 17,
+    title: "Zone of Interest",
+    release_year: 2023,
+    runtime_min: 105,
+    overview:
+      "A commandant and his family build an idyllic life next door to the camp he oversees.",
+    vote_average: 7.6,
+    genres: ["Drama", "History"],
+  },
+  {
+    id: 18,
+    title: "Anatomy of a Fall",
+    release_year: 2023,
+    runtime_min: 152,
+    overview:
+      "A woman's life is scrutinized after her husband is found dead outside their mountain home.",
+    vote_average: 7.7,
+    genres: ["Drama", "Mystery"],
+  },
+  {
+    id: 19,
+    title: "The Batman",
+    release_year: 2022,
+    runtime_min: 176,
+    overview:
+      "A vigilante detective unravels corruption in Gotham while pursuing a serial killer.",
+    vote_average: 7.8,
+    genres: ["Action", "Crime"],
+  },
+  {
+    id: 20,
+    title: "Grand Budapest Hotel",
+    release_year: 2014,
+    runtime_min: 99,
+    overview:
+      "A legendary concierge and his protégé become entangled in a theft and inheritance scheme.",
+    vote_average: 8.1,
+    genres: ["Comedy", "Adventure"],
+  },
+];
+
+/**
+ * Static display numbers for the signed-in placeholder user. Not computed
+ * from placeholderMovies — this is a fixture, not a data layer.
+ */
+export const placeholderProfile: UserProfile = {
+  name: "Jamie",
+  watched_count: 182,
+  rated_count: 126,
+  average_rating: 4.1,
+  watchlist_count: 24,
+};
