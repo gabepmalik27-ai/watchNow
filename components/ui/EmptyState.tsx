@@ -1,8 +1,11 @@
+import type { ReactNode } from "react";
+
 type EmptyStateProps = {
   title: string;
   description: string;
   actionLabel?: string;
   onAction?: () => void;
+  children?: ReactNode;
 };
 
 export function EmptyState({
@@ -10,6 +13,7 @@ export function EmptyState({
   description,
   actionLabel,
   onAction,
+  children,
 }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-panel px-6 py-12 text-center">
@@ -24,6 +28,7 @@ export function EmptyState({
           {actionLabel}
         </button>
       ) : null}
+      {children ? <div className="mt-2">{children}</div> : null}
     </div>
   );
 }

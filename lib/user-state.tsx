@@ -27,16 +27,22 @@ function defaultUserMovie(movieId: number): UserMovie {
   return { movie_id: movieId, watched: false, rating: null, not_interested: false };
 }
 
+/**
+ * Moves the touched movie to the end of the array. There's no timestamp
+ * field on UserMovie, so array order (most-recently-touched last) is the
+ * only signal available for "most recent" sorting in For You.
+ */
 function upsert(
   movies: UserMovie[],
   movieId: number,
   patch: Partial<Omit<UserMovie, "movie_id">>,
 ): UserMovie[] {
   const existing = movies.find((m) => m.movie_id === movieId);
-  if (!existing) {
-    return [...movies, { ...defaultUserMovie(movieId), ...patch }];
-  }
-  return movies.map((m) => (m.movie_id === movieId ? { ...m, ...patch } : m));
+  const rest = movies.filter((m) => m.movie_id !== movieId);
+  const updated = existing
+    ? { ...existing, ...patch }
+    : { ...defaultUserMovie(movieId), ...patch };
+  return [...rest, updated];
 }
 
 export function UserStateProvider({ children }: { children: ReactNode }) {
