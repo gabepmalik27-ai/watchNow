@@ -14,6 +14,8 @@
 }
 
 @theme inline {
+  --breakpoint-tablet: 48rem; /* 768px */
+  --breakpoint-desktop: 75rem; /* 1200px */
   --color-midnight: var(--midnight);
   --color-navigation: var(--navigation);
   --color-panel: var(--panel);
