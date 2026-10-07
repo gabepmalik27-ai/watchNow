@@ -6,13 +6,16 @@ import { MovieRow } from "@/components/movie/MovieRow";
 import { PosterButton } from "@/components/movie/PosterButton";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Toast } from "@/components/ui/Toast";
 import { getRateCandidates } from "@/lib/rate-candidates";
 import { placeholderMovies } from "@/lib/placeholder-data";
 import { useUserState } from "@/lib/user-state";
 import type { Movie } from "@/types/movie";
 
 export default function RatePage() {
-  const { userMovies, getUserMovie, ratedCount } = useUserState();
+  const { userMovies, getUserMovie, ratedCount, lastRating, undoLastRating } =
+    useUserState();
+  const [dismissedToken, setDismissedToken] = useState(0);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Movie | null>(null);
   const openerRef = useRef<HTMLButtonElement | null>(null);
@@ -52,12 +55,26 @@ export default function RatePage() {
     ? placeholderMovies.filter((m) => m.title.toLowerCase().includes(trimmed))
     : [];
 
+  const toastVisible = lastRating !== null && lastRating.token !== dismissedToken;
+  const toastMovie = lastRating ? byId.get(lastRating.movieId) : undefined;
+
+  const toast =
+    toastVisible && lastRating && toastMovie ? (
+      <Toast
+        toastKey={lastRating.token}
+        message={`Rated ${toastMovie.title} ★${lastRating.rating.toFixed(1)}`}
+        actionLabel="Undo"
+        onAction={undoLastRating}
+        onDismiss={() => setDismissedToken(lastRating.token)}
+      />
+    ) : null;
+
   const renderPoster = (movie: Movie) => (
     <PosterButton movie={movie} userMovie={getUserMovie(movie.id)} onOpen={openMovie} />
   );
 
   return (
-    <main className="pb-24 pt-8">
+    <main className="pb-16 pt-8">
       <PageContainer className="flex flex-col gap-8">
         <div className="flex flex-col gap-2">
           <div className="flex items-baseline gap-3">
@@ -115,7 +132,11 @@ export default function RatePage() {
         )}
       </PageContainer>
 
-      <MovieDetailDialog movie={selected} onClose={closeMovie} />
+      {/* Inside the dialog while it's open: a modal makes outside content inert, so Undo would be unclickable. */}
+      <MovieDetailDialog movie={selected} onClose={closeMovie}>
+        {selected ? toast : null}
+      </MovieDetailDialog>
+      {selected ? null : toast}
     </main>
   );
 }

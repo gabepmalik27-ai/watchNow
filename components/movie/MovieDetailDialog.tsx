@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PosterBlock } from "@/components/movie/PosterBlock";
 import { FilterChip } from "@/components/ui/FilterChip";
 import { StarRating } from "@/components/ui/StarRating";
@@ -10,9 +10,14 @@ import type { Movie } from "@/types/movie";
 type MovieDetailDialogProps = {
   movie: Movie | null;
   onClose: () => void;
+  /**
+   * Rendered inside the <dialog>. A modal dialog makes everything outside it
+   * inert, so a toast that must stay clickable (Undo) has to live in here.
+   */
+  children?: ReactNode;
 };
 
-export function MovieDetailDialog({ movie, onClose }: MovieDetailDialogProps) {
+export function MovieDetailDialog({ movie, onClose, children }: MovieDetailDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const { getUserMovie, setRating, toggleWatched, toggleWatchlist } = useUserState();
 
@@ -128,6 +133,7 @@ export function MovieDetailDialog({ movie, onClose }: MovieDetailDialogProps) {
           </div>
         </div>
       ) : null}
+      {children}
     </dialog>
   );
 }
