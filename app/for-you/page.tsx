@@ -43,12 +43,15 @@ const RECENT_ACTIVITY = [
 
 export default function ForYouPage() {
   const router = useRouter();
-  const { userMovies, setRating, watchedCount, ratedCount, averageRating } =
-    useUserState();
+  const {
+    userMovies,
+    setRating,
+    toggleWatchlist,
+    watchedCount,
+    ratedCount,
+    averageRating,
+  } = useUserState();
   const [activeTab, setActiveTab] = useState("overview");
-  const [watchlistIds, setWatchlistIds] = useState<number[]>(
-    placeholderMovies.slice(0, 6).map((m) => m.id),
-  );
 
   const displayWatched = watchedCount > 0 ? watchedCount : placeholderProfile.watched_count;
   const displayRated = ratedCount > 0 ? ratedCount : placeholderProfile.rated_count;
@@ -69,8 +72,9 @@ export default function ForYouPage() {
       Boolean(entry.movie),
     );
 
-  const watchlistMovies = watchlistIds
-    .map((id) => placeholderMovies.find((m) => m.id === id))
+  const watchlistMovies = userMovies
+    .filter((um) => um.on_watchlist && !um.watched)
+    .map((um) => placeholderMovies.find((m) => m.id === um.movie_id))
     .filter((m): m is NonNullable<typeof m> => Boolean(m));
 
   return (
@@ -171,9 +175,7 @@ export default function ForYouPage() {
                   <button
                     type="button"
                     aria-label={`Remove ${movie.title} from watchlist`}
-                    onClick={() =>
-                      setWatchlistIds((ids) => ids.filter((id) => id !== movie.id))
-                    }
+                    onClick={() => toggleWatchlist(movie.id)}
                     className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-midnight/80 text-text opacity-0 transition-opacity focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-electric group-hover:opacity-100 group-focus-within:opacity-100"
                   >
                     ×

@@ -1,35 +1,86 @@
 "use client";
 
-import { useState } from "react";
-import { PosterBlock } from "@/components/movie/PosterBlock";
+import { useRef, useState } from "react";
+import { MovieDetailDialog } from "@/components/movie/MovieDetailDialog";
+import { MovieRow } from "@/components/movie/MovieRow";
+import { PosterButton } from "@/components/movie/PosterButton";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { FilterChip } from "@/components/ui/FilterChip";
-import { StarRating } from "@/components/ui/StarRating";
+import { Toast } from "@/components/ui/Toast";
+import { getRateCandidates } from "@/lib/rate-candidates";
 import { placeholderMovies } from "@/lib/placeholder-data";
 import { useUserState } from "@/lib/user-state";
+import type { Movie } from "@/types/movie";
 
 export default function RatePage() {
-  const { getUserMovie, setRating, toggleWatched, ratedCount } = useUserState();
+  const { userMovies, getUserMovie, ratedCount, lastRating, undoLastRating } =
+    useUserState();
+  const [dismissedToken, setDismissedToken] = useState(0);
   const [query, setQuery] = useState("");
-  const [showSaved, setShowSaved] = useState(false);
+  const [selected, setSelected] = useState<Movie | null>(null);
+  const openerRef = useRef<HTMLButtonElement | null>(null);
 
-  const filtered = query
-    ? placeholderMovies.filter((m) =>
-        m.title.toLowerCase().includes(query.toLowerCase()),
-      )
-    : placeholderMovies;
-
-  function handleSave() {
-    setShowSaved(true);
-    setTimeout(() => setShowSaved(false), 2000);
+  function openMovie(movie: Movie, trigger: HTMLButtonElement) {
+    openerRef.current = trigger;
+    setSelected(movie);
   }
 
+  function closeMovie() {
+    setSelected(null);
+    // Native <dialog> restores focus itself; this is a fallback for when the
+    // opener was re-mounted (e.g. it moved between rows after being rated).
+    const opener = openerRef.current;
+    if (opener && !opener.isConnected) return;
+    opener?.focus();
+  }
+
+  const byId = new Map(placeholderMovies.map((m) => [m.id, m]));
+  const toMovies = (ids: number[]) =>
+    ids.map((id) => byId.get(id)).filter((m): m is Movie => Boolean(m));
+
+  const watchlist = toMovies(
+    userMovies.filter((um) => um.on_watchlist && !um.watched).map((um) => um.movie_id),
+  );
+  const candidates = getRateCandidates(placeholderMovies, userMovies);
+  // Array order is oldest -> newest touched, so reverse for most recent first.
+  const recentlyRated = toMovies(
+    userMovies
+      .filter((um) => um.rating !== null)
+      .map((um) => um.movie_id)
+      .reverse(),
+  );
+
+  const trimmed = query.trim().toLowerCase();
+  const matches = trimmed
+    ? placeholderMovies.filter((m) => m.title.toLowerCase().includes(trimmed))
+    : [];
+
+  const toastVisible = lastRating !== null && lastRating.token !== dismissedToken;
+  const toastMovie = lastRating ? byId.get(lastRating.movieId) : undefined;
+
+  const toast =
+    toastVisible && lastRating && toastMovie ? (
+      <Toast
+        toastKey={lastRating.token}
+        message={`Rated ${toastMovie.title} ★${lastRating.rating.toFixed(1)}`}
+        actionLabel="Undo"
+        onAction={undoLastRating}
+        onDismiss={() => setDismissedToken(lastRating.token)}
+      />
+    ) : null;
+
+  const renderPoster = (movie: Movie) => (
+    <PosterButton movie={movie} userMovie={getUserMovie(movie.id)} onOpen={openMovie} />
+  );
+
   return (
-    <main className="pb-24 pt-8">
+    <main className="pb-16 pt-8">
       <PageContainer className="flex flex-col gap-8">
         <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold text-text">Rate Movies</h1>
+          <div className="flex items-baseline gap-3">
+            <h1 className="text-2xl font-bold text-text">Rate Movies</h1>
+            <p className="text-sm text-muted">{ratedCount} rated</p>
+          </div>
           <p className="text-muted">
             Every rating improves your recommendations.
           </p>
@@ -43,69 +94,49 @@ export default function RatePage() {
           />
         </div>
 
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-text">
-            Popular movies you may have seen
-          </h2>
-          <p className="text-sm text-muted">
-            {ratedCount} rated this session
-          </p>
-        </div>
-
-        {filtered.length === 0 ? (
-          <EmptyState
-            title="No movies match your search"
-            description="Try a different title, or clear the search to see all popular movies."
-          />
+        {trimmed ? (
+          matches.length === 0 ? (
+            <EmptyState
+              title="No movies match your search"
+              description="Try a different title, or clear the search to see all popular movies."
+            />
+          ) : (
+            <div className="grid grid-cols-2 gap-6 tablet:grid-cols-4 desktop:grid-cols-6">
+              {matches.map((movie) => (
+                <div key={movie.id}>{renderPoster(movie)}</div>
+              ))}
+            </div>
+          )
         ) : (
-          <div className="grid grid-cols-2 gap-6 tablet:grid-cols-3 desktop:grid-cols-5">
-            {filtered.map((movie) => {
-              const userMovie = getUserMovie(movie.id);
-              return (
-                <div key={movie.id} className="flex flex-col gap-2">
-                  <PosterBlock movieId={movie.id} />
-                  <p className="truncate text-sm font-medium text-text">
-                    {movie.title}
-                  </p>
-                  <p className="text-xs text-muted">
-                    {movie.release_year} ·{" "}
-                    <span className="text-rating">★</span>{" "}
-                    {(movie.vote_average / 2).toFixed(1)}
-                  </p>
-                  <StarRating
-                    value={userMovie?.rating ?? null}
-                    onChange={(value) => setRating(movie.id, value)}
-                    label={`Rate ${movie.title}`}
-                    size="sm"
-                  />
-                  <FilterChip
-                    label={userMovie?.watched ? "Watched" : "Mark watched"}
-                    selected={userMovie?.watched ?? false}
-                    onClick={() => toggleWatched(movie.id)}
-                  />
-                </div>
-              );
-            })}
+          <div className="flex flex-col gap-8">
+            {watchlist.length > 0 ? (
+              <MovieRow
+                title="From your watchlist"
+                movies={watchlist}
+                renderItem={renderPoster}
+              />
+            ) : null}
+            <MovieRow
+              title="Recommended — have you seen these?"
+              movies={candidates}
+              renderItem={renderPoster}
+            />
+            {recentlyRated.length > 0 ? (
+              <MovieRow
+                title="Recently rated"
+                movies={recentlyRated}
+                renderItem={renderPoster}
+              />
+            ) : null}
           </div>
         )}
       </PageContainer>
 
-      <div className="fixed inset-x-0 bottom-16 z-30 border-t border-border bg-navigation px-4 py-4 tablet:bottom-0">
-        <PageContainer className="flex flex-col items-center gap-2">
-          <button
-            type="button"
-            onClick={handleSave}
-            className="min-h-11 w-full max-w-2xl rounded-full bg-electric text-sm font-semibold text-text transition-colors hover:bg-soft-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-electric focus-visible:ring-offset-2 focus-visible:ring-offset-navigation"
-          >
-            Save Ratings and Continue
-          </button>
-          {showSaved ? (
-            <p role="status" className="text-sm text-soft-blue">
-              ✓ Ratings saved
-            </p>
-          ) : null}
-        </PageContainer>
-      </div>
+      {/* Inside the dialog while it's open: a modal makes outside content inert, so Undo would be unclickable. */}
+      <MovieDetailDialog movie={selected} onClose={closeMovie}>
+        {selected ? toast : null}
+      </MovieDetailDialog>
+      {selected ? null : toast}
     </main>
   );
 }

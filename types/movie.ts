@@ -13,6 +13,7 @@ export type UserMovie = {
   watched: boolean;
   rating: number | null; // 0.5–5.0 in 0.5 steps, null if unrated
   not_interested: boolean;
+  on_watchlist: boolean; // wants to watch later; cleared once watched
 };
 
 export type UserProfile = {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import { MovieCard } from "@/components/movie/MovieCard";
 import type { Movie } from "@/types/movie";
 
@@ -8,11 +8,13 @@ type MovieRowProps = {
   title: string;
   movies: Movie[];
   onSeeAll?: () => void;
+  /** Override how each movie renders. Defaults to MovieCard. */
+  renderItem?: (movie: Movie) => ReactNode;
 };
 
 const SCROLL_STEP = 320;
 
-export function MovieRow({ title, movies, onSeeAll }: MovieRowProps) {
+export function MovieRow({ title, movies, onSeeAll, renderItem }: MovieRowProps) {
   const scrollerRef = useRef<HTMLDivElement>(null);
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
@@ -50,7 +52,7 @@ export function MovieRow({ title, movies, onSeeAll }: MovieRowProps) {
       >
         {movies.map((movie) => (
           <div key={movie.id} className="w-36 shrink-0 snap-start sm:w-40">
-            <MovieCard movie={movie} />
+            {renderItem ? renderItem(movie) : <MovieCard movie={movie} />}
           </div>
         ))}
       </div>
