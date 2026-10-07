@@ -5,26 +5,56 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import type { UserMovie } from "@/types/movie";
 
+export type LastRating = {
+  movieId: number;
+  rating: number;
+  /** Increments on every rating so repeat ratings of the same value still re-trigger the toast. */
+  token: number;
+};
+
 type UserStateContextValue = {
   userMovies: UserMovie[];
   getUserMovie: (movieId: number) => UserMovie | undefined;
   setRating: (movieId: number, rating: number) => void;
+  undoLastRating: () => void;
+  lastRating: LastRating | null;
   toggleWatched: (movieId: number) => void;
+  toggleWatchlist: (movieId: number) => void;
   setNotInterested: (movieId: number) => void;
   watchedCount: number;
   ratedCount: number;
+  watchlistCount: number;
   averageRating: number;
+};
+
+type UndoSnapshot = {
+  movieId: number;
+  previous: UserMovie | undefined;
+  index: number;
 };
 
 const UserStateContext = createContext<UserStateContextValue | null>(null);
 
+/**
+ * Same six movies the For You watchlist tab used to seed locally. Ids only,
+ * so this file never needs to read the placeholder catalog.
+ */
+const DEFAULT_WATCHLIST_IDS = [1, 2, 3, 4, 5, 6];
+
 function defaultUserMovie(movieId: number): UserMovie {
-  return { movie_id: movieId, watched: false, rating: null, not_interested: false };
+  return {
+    movie_id: movieId,
+    watched: false,
+    rating: null,
+    not_interested: false,
+    on_watchlist: false,
+  };
 }
 
 /**
@@ -45,32 +75,104 @@ function upsert(
   return [...rest, updated];
 }
 
-export function UserStateProvider({ children }: { children: ReactNode }) {
-  const [userMovies, setUserMovies] = useState<UserMovie[]>([]);
+export function UserStateProvider({
+  children,
+  initialWatchlistIds = DEFAULT_WATCHLIST_IDS,
+}: {
+  children: ReactNode;
+  initialWatchlistIds?: number[];
+}) {
+  const [userMovies, setUserMovies] = useState<UserMovie[]>(() =>
+    initialWatchlistIds.map((id) => ({ ...defaultUserMovie(id), on_watchlist: true })),
+  );
+  const [lastRating, setLastRating] = useState<LastRating | null>(null);
+
+  // Mirrors state so event handlers can read the latest value synchronously
+  // (needed to snapshot "before" state for undo without side effects inside
+  // a state updater).
+  const userMoviesRef = useRef(userMovies);
+  const undoRef = useRef<UndoSnapshot | null>(null);
+  const tokenRef = useRef(0);
+
+  const commit = useCallback((next: UserMovie[]) => {
+    userMoviesRef.current = next;
+    setUserMovies(next);
+  }, []);
 
   const getUserMovie = useCallback(
     (movieId: number) => userMovies.find((m) => m.movie_id === movieId),
     [userMovies],
   );
 
-  const setRating = useCallback((movieId: number, rating: number) => {
-    setUserMovies((movies) => upsert(movies, movieId, { rating, watched: true }));
-  }, []);
+  const setRating = useCallback(
+    (movieId: number, rating: number) => {
+      const current = userMoviesRef.current;
+      const index = current.findIndex((m) => m.movie_id === movieId);
+      undoRef.current = {
+        movieId,
+        previous: index === -1 ? undefined : current[index],
+        index,
+      };
+      tokenRef.current += 1;
+      setLastRating({ movieId, rating, token: tokenRef.current });
+      commit(upsert(current, movieId, { rating, watched: true, on_watchlist: false }));
+    },
+    [commit],
+  );
 
-  const toggleWatched = useCallback((movieId: number) => {
-    setUserMovies((movies) => {
-      const existing = movies.find((m) => m.movie_id === movieId);
+  const undoLastRating = useCallback(() => {
+    const snapshot = undoRef.current;
+    if (!snapshot) return;
+    const without = userMoviesRef.current.filter((m) => m.movie_id !== snapshot.movieId);
+    if (snapshot.previous) {
+      const at = Math.min(snapshot.index, without.length);
+      commit([...without.slice(0, at), snapshot.previous, ...without.slice(at)]);
+    } else {
+      commit(without);
+    }
+    undoRef.current = null;
+    setLastRating(null);
+  }, [commit]);
+
+  const toggleWatched = useCallback(
+    (movieId: number) => {
+      const current = userMoviesRef.current;
+      const existing = current.find((m) => m.movie_id === movieId);
       const nextWatched = existing ? !existing.watched : true;
-      return upsert(movies, movieId, { watched: nextWatched });
-    });
-  }, []);
+      commit(
+        upsert(
+          current,
+          movieId,
+          nextWatched ? { watched: true, on_watchlist: false } : { watched: false },
+        ),
+      );
+    },
+    [commit],
+  );
 
-  const setNotInterested = useCallback((movieId: number) => {
-    setUserMovies((movies) => upsert(movies, movieId, { not_interested: true }));
-  }, []);
+  const toggleWatchlist = useCallback(
+    (movieId: number) => {
+      const current = userMoviesRef.current;
+      const existing = current.find((m) => m.movie_id === movieId);
+      commit(upsert(current, movieId, { on_watchlist: !existing?.on_watchlist }));
+    },
+    [commit],
+  );
+
+  const setNotInterested = useCallback(
+    (movieId: number) => {
+      commit(upsert(userMoviesRef.current, movieId, { not_interested: true }));
+    },
+    [commit],
+  );
 
   const watchedCount = useMemo(
     () => userMovies.filter((m) => m.watched).length,
+    [userMovies],
+  );
+
+  const watchlistCount = useMemo(
+    () => userMovies.filter((m) => m.on_watchlist && !m.watched).length,
     [userMovies],
   );
 
@@ -90,20 +192,28 @@ export function UserStateProvider({ children }: { children: ReactNode }) {
       userMovies,
       getUserMovie,
       setRating,
+      undoLastRating,
+      lastRating,
       toggleWatched,
+      toggleWatchlist,
       setNotInterested,
       watchedCount,
       ratedCount: ratedMovies.length,
+      watchlistCount,
       averageRating,
     }),
     [
       userMovies,
       getUserMovie,
       setRating,
+      undoLastRating,
+      lastRating,
       toggleWatched,
+      toggleWatchlist,
       setNotInterested,
       watchedCount,
       ratedMovies.length,
+      watchlistCount,
       averageRating,
     ],
   );
