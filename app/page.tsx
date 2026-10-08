@@ -1,22 +1,13 @@
 import Link from "next/link";
 import { MovieRow } from "@/components/movie/MovieRow";
 import { PageContainer } from "@/components/layout/PageContainer";
-import { placeholderMovies } from "@/lib/placeholder-data";
+import { getHomeRows } from "@/lib/catalog";
 
-const GENRE_ROWS = ["Sci-Fi", "Drama", "Comedy"];
+// Rebuild the page at most once a day; the catalog is reseeded rarely.
+export const revalidate = 86400;
 
-export default function HomePage() {
-  const trending = placeholderMovies.slice(0, 10);
-  const newReleases = [...placeholderMovies]
-    .sort((a, b) => (b.release_year ?? 0) - (a.release_year ?? 0))
-    .slice(0, 10);
-  const topRated = [...placeholderMovies]
-    .sort((a, b) => (b.vote_average ?? 0) - (a.vote_average ?? 0))
-    .slice(0, 10);
-  const genreRows = GENRE_ROWS.map((genre) => ({
-    genre,
-    movies: placeholderMovies.filter((m) => m.genres.includes(genre)),
-  }));
+export default async function HomePage() {
+  const rows = await getHomeRows();
 
   return (
     <main className="flex flex-col gap-12 pb-16">
@@ -44,11 +35,8 @@ export default function HomePage() {
       </PageContainer>
 
       <PageContainer className="flex flex-col gap-10">
-        <MovieRow title="Trending Now" movies={trending} />
-        <MovieRow title="New Releases" movies={newReleases} />
-        <MovieRow title="Top Rated" movies={topRated} />
-        {genreRows.map((row) => (
-          <MovieRow key={row.genre} title={row.genre} movies={row.movies} />
+        {rows.map((row) => (
+          <MovieRow key={row.title} title={row.title} movies={row.movies} />
         ))}
       </PageContainer>
     </main>
