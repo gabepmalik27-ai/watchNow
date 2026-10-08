@@ -24,7 +24,7 @@ export function PosterButton({ movie, userMovie, onOpen, className }: PosterButt
       )}
     >
       <div className="relative">
-        <PosterBlock movieId={movie.id} />
+        <PosterBlock movie={movie} />
         {rating !== null ? (
           <span className="absolute right-2 top-2 rounded-full bg-midnight/80 px-2 py-0.5 text-xs font-semibold text-text">
             <span className="text-rating" aria-hidden="true">

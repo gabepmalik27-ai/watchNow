@@ -136,7 +136,7 @@ export default function RecommendPage() {
             <div className="grid grid-cols-2 gap-6 tablet:grid-cols-3 desktop:grid-cols-5">
               {results.map((movie) => (
                 <div key={movie.id} className="flex flex-col gap-2">
-                  <PosterBlock movieId={movie.id} />
+                  <PosterBlock movie={movie} />
                   <p className="text-sm font-medium text-text">{movie.title}</p>
                   <p className="text-xs text-muted">
                     {movie.release_year} ·{" "}

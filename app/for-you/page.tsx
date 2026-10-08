@@ -143,7 +143,7 @@ export default function ForYouPage() {
             <div className="grid grid-cols-2 gap-6 tablet:grid-cols-3 desktop:grid-cols-5">
               {ratedMovies.map(({ movie, userMovie }) => (
                 <div key={movie.id} className="flex flex-col gap-2">
-                  <PosterBlock movieId={movie.id} />
+                  <PosterBlock movie={movie} />
                   <p className="truncate text-sm font-medium text-text">
                     {movie.title}
                   </p>
@@ -172,7 +172,7 @@ export default function ForYouPage() {
             <div className="grid grid-cols-2 gap-6 tablet:grid-cols-3 desktop:grid-cols-5">
               {watchlistMovies.map((movie) => (
                 <div key={movie.id} className="group relative flex flex-col gap-2">
-                  <PosterBlock movieId={movie.id} />
+                  <PosterBlock movie={movie} />
                   <button
                     type="button"
                     aria-label={`Remove ${movie.title} from watchlist`}

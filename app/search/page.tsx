@@ -105,7 +105,7 @@ export default function SearchPage() {
                 <h2 className="text-lg font-bold text-text">Top result</h2>
                 <Panel className="flex flex-col gap-4 tablet:flex-row">
                   <div className="w-full tablet:w-40">
-                    <PosterBlock movieId={topResult.id} />
+                    <PosterBlock movie={topResult} sizes="(min-width: 768px) 160px, 100vw" />
                   </div>
                   <div className="flex flex-col gap-2">
                     <h3 className="text-xl font-bold text-text">
