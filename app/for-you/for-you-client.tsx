@@ -10,11 +10,11 @@ import { Panel } from "@/components/ui/Panel";
 import { StarRating } from "@/components/ui/StarRating";
 import { StatCard } from "@/components/ui/StatCard";
 import { Tabs, type TabItem } from "@/components/ui/Tabs";
+import { useAuth } from "@/lib/auth";
 import { formatAudienceRating } from "@/lib/format";
-import { placeholderProfile } from "@/lib/placeholder-data";
 import { useMoviesByIds } from "@/lib/use-movies-by-ids";
 import { useUserState } from "@/lib/user-state";
-import type { CatalogMovie } from "@/types/movie";
+import type { CatalogMovie, UserMovie } from "@/types/movie";
 
 const TABS: TabItem[] = [
   { id: "overview", label: "Overview" },
@@ -33,16 +33,17 @@ const PREFERENCE_PANELS = [
   "Discovery",
 ];
 
-/**
- * Static placeholder content — there's no timestamp field on UserMovie, so
- * this is a display fixture, not derived from real interactions.
- */
-const RECENT_ACTIVITY = [
-  "Rated Dune: Part Two",
-  "Added The Batman to watchlist",
-  "Rated Poor Things",
-  "Marked The Holdovers watched",
-];
+/** How many recently touched movies the Activity tab lists. */
+const ACTIVITY_LIMIT = 5;
+
+/** Describes a movie's current state; null when nothing is set (e.g. removed from watchlist). */
+function describeActivity(userMovie: UserMovie, title: string): string | null {
+  if (userMovie.rating !== null) return `Rated ${title} ★${userMovie.rating.toFixed(1)}`;
+  if (userMovie.watched) return `Marked ${title} watched`;
+  if (userMovie.on_watchlist) return `Added ${title} to watchlist`;
+  if (userMovie.not_interested) return `Marked ${title} not interested`;
+  return null;
+}
 
 type ForYouClientProps = {
   /** "Recommended for You" row; from getCandidatePool on the server until scoring exists. */
@@ -51,22 +52,24 @@ type ForYouClientProps = {
 
 export function ForYouClient({ recommended }: ForYouClientProps) {
   const router = useRouter();
+  const { displayName } = useAuth();
   const {
     userMovies,
     setRating,
     toggleWatchlist,
     watchedCount,
     ratedCount,
+    watchlistCount,
     averageRating,
+    loaded,
   } = useUserState();
   const [activeTab, setActiveTab] = useState("overview");
 
-  const displayWatched = watchedCount > 0 ? watchedCount : placeholderProfile.watched_count;
-  const displayRated = ratedCount > 0 ? ratedCount : placeholderProfile.rated_count;
-  const displayAvg =
-    ratedCount > 0
-      ? averageRating.toFixed(1)
-      : placeholderProfile.average_rating.toFixed(1);
+  // "–" until the saved rows arrive, so a returning user never sees 0s flash.
+  const displayWatched = loaded ? watchedCount : "–";
+  const displayRated = loaded ? ratedCount : "–";
+  const displayWatchlist = loaded ? watchlistCount : "–";
+  const displayAvg = loaded && ratedCount > 0 ? averageRating.toFixed(1) : "–";
 
   // Most recent first: array order is oldest -> newest touched.
   const ratedUserMovies = userMovies.filter((um) => um.rating !== null).reverse();
@@ -85,12 +88,25 @@ export function ForYouClient({ recommended }: ForYouClientProps) {
     recommended,
   );
 
+  // Most recently touched first.
+  const recentUserMovies = userMovies.slice(-ACTIVITY_LIMIT).reverse();
+  const { movies: recentCatalog } = useMoviesByIds(
+    recentUserMovies.map((um) => um.movie_id),
+    recommended,
+  );
+  const recentById = new Map(recentCatalog.map((movie) => [movie.id, movie]));
+  const recentActivity = recentUserMovies.flatMap((userMovie) => {
+    const movie = recentById.get(userMovie.movie_id);
+    const text = movie ? describeActivity(userMovie, movie.title) : null;
+    return text ? [{ id: userMovie.movie_id, text }] : [];
+  });
+
   return (
     <main className="pb-16 pt-8">
       <PageContainer className="flex flex-col gap-8">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold text-text">
-            Good evening, {placeholderProfile.name}
+            {displayName ? `Good evening, ${displayName}` : "Good evening"}
           </h1>
           <p className="text-muted">
             Here&rsquo;s a look at your movie journey and what&rsquo;s next.
@@ -101,7 +117,7 @@ export function ForYouClient({ recommended }: ForYouClientProps) {
           <StatCard value={displayWatched} label="Watched" />
           <StatCard value={displayRated} label="Rated" />
           <StatCard value={displayAvg} label="Avg rating" />
-          <StatCard value={placeholderProfile.watchlist_count} label="Watchlist" />
+          <StatCard value={displayWatchlist} label="Watchlist" />
         </div>
 
         <Tabs tabs={TABS} activeId={activeTab} onChange={setActiveTab} />
@@ -221,18 +237,26 @@ export function ForYouClient({ recommended }: ForYouClientProps) {
           <div className="grid grid-cols-1 gap-4 tablet:grid-cols-[2fr_1fr]">
             <Panel>
               <p className="mb-3 font-semibold text-text">Recent Activity</p>
-              <ul className="flex flex-col">
-                {RECENT_ACTIVITY.map((entry, index) => (
-                  <li
-                    key={entry}
-                    className={
-                      index > 0 ? "border-t border-border py-3 text-sm text-text" : "py-3 text-sm text-text"
-                    }
-                  >
-                    {entry}
-                  </li>
-                ))}
-              </ul>
+              {recentActivity.length === 0 ? (
+                <p className="text-sm text-muted">
+                  {loaded
+                    ? "No activity yet. Ratings, watched movies and watchlist adds will show up here."
+                    : "Loading your activity…"}
+                </p>
+              ) : (
+                <ul className="flex flex-col">
+                  {recentActivity.map((entry, index) => (
+                    <li
+                      key={entry.id}
+                      className={
+                        index > 0 ? "border-t border-border py-3 text-sm text-text" : "py-3 text-sm text-text"
+                      }
+                    >
+                      {entry.text}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </Panel>
             <Panel>
               <p className="mb-2 font-semibold text-text">Your Journey</p>

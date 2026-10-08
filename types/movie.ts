@@ -55,12 +55,3 @@ export type Profile = {
   display_name: string;
   created_at: string; // ISO timestamp
 };
-
-/** Display numbers for lib/placeholder-data.ts; removed with it in step 4. */
-export type UserProfile = {
-  name: string;
-  watched_count: number;
-  rated_count: number;
-  average_rating: number;
-  watchlist_count: number;
-};
