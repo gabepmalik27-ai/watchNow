@@ -11,6 +11,8 @@
   --muted: #91a1b2;
   --rating: #ffc642;
   --border: #18334a;
+  /* Form and save errors. Not in the original token set; ~7:1 on --midnight and --panel. */
+  --danger: #ff8a8a;
 }
 
 @theme inline {
@@ -26,6 +28,7 @@
   --color-muted: var(--muted);
   --color-rating: var(--rating);
   --color-border: var(--border);
+  --color-danger: var(--danger);
   --font-sans: var(--font-inter);
 }
 

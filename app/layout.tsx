@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
+import { AuthProvider } from "@/lib/auth";
 import { UserStateProvider } from "@/lib/user-state";
 import "./globals.css";
 
@@ -27,14 +28,16 @@ export default function RootLayout({
         className={`${inter.variable} font-sans antialiased`}
         suppressHydrationWarning
       >
-        <UserStateProvider>
-          <Header />
-          <div className="pb-16 tablet:pb-0">
-            {children}
-            <Footer />
-          </div>
-          <BottomNav />
-        </UserStateProvider>
+        <AuthProvider>
+          <UserStateProvider>
+            <Header />
+            <div className="pb-16 tablet:pb-0">
+              {children}
+              <Footer />
+            </div>
+            <BottomNav />
+          </UserStateProvider>
+        </AuthProvider>
       </body>
     </html>
   );

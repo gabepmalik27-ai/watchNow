@@ -43,10 +43,15 @@ export type UserMovie = {
   on_watchlist: boolean; // wants to watch later; cleared once watched
 };
 
-export type UserProfile = {
-  name: string;
-  watched_count: number;
-  rated_count: number;
-  average_rating: number;
-  watchlist_count: number;
+/** One row of public.user_movies (supabase/migrations/0002_accounts.sql). */
+export type UserMovieRow = UserMovie & {
+  user_id: string; // auth.users id
+  updated_at: string; // ISO timestamp
+};
+
+/** One row of public.profiles (supabase/migrations/0002_accounts.sql). */
+export type Profile = {
+  id: string; // auth.users id
+  display_name: string;
+  created_at: string; // ISO timestamp
 };

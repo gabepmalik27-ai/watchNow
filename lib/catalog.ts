@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getSupabase } from "@/lib/supabase-server";
+import { getCatalogClient } from "@/lib/supabase-server";
 import type { CatalogMovie } from "@/types/movie";
 
 /**
@@ -20,7 +20,7 @@ export const HOME_GENRES = ["Action", "Comedy", "Drama", "Science Fiction", "Hor
 export type HomeRow = { title: string; movies: CatalogMovie[] };
 
 function movies() {
-  return getSupabase().from("movies").select(CATALOG_COLUMNS);
+  return getCatalogClient().from("movies").select(CATALOG_COLUMNS);
 }
 
 function unwrap<T>(result: { data: T | null; error: { message: string } | null }): T {
@@ -84,7 +84,7 @@ export async function getCandidatePool(n: number): Promise<CatalogMovie[]> {
 
 export async function getGenres(): Promise<string[]> {
   const rows = unwrap(
-    await getSupabase().from("movie_genres").select("name").order("name", { ascending: true }),
+    await getCatalogClient().from("movie_genres").select("name").order("name", { ascending: true }),
   );
   return rows.map((row) => row.name);
 }

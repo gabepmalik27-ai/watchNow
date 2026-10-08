@@ -12,9 +12,16 @@ type TabsProps = {
   tabs: TabItem[];
   activeId: string;
   onChange: (id: string) => void;
+  /** Accessible name for the tablist. */
+  label?: string;
+  /**
+   * When set, tab i gets id `${idPrefix}-tab-${id}` and aria-controls
+   * `${idPrefix}-panel-${id}`, so the caller's tabpanels can point back.
+   */
+  idPrefix?: string;
 };
 
-export function Tabs({ tabs, activeId, onChange }: TabsProps) {
+export function Tabs({ tabs, activeId, onChange, label = "Sections", idPrefix }: TabsProps) {
   const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   function focusTab(index: number) {
@@ -48,7 +55,7 @@ export function Tabs({ tabs, activeId, onChange }: TabsProps) {
   return (
     <div
       role="tablist"
-      aria-label="Sections"
+      aria-label={label}
       className="flex gap-2 overflow-x-auto pb-1"
     >
       {tabs.map((tab, index) => {
@@ -60,6 +67,8 @@ export function Tabs({ tabs, activeId, onChange }: TabsProps) {
               buttonRefs.current[index] = el;
             }}
             role="tab"
+            id={idPrefix ? `${idPrefix}-tab-${tab.id}` : undefined}
+            aria-controls={idPrefix ? `${idPrefix}-panel-${tab.id}` : undefined}
             type="button"
             aria-selected={active}
             tabIndex={active ? 0 : -1}
