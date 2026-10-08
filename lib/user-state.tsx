@@ -42,10 +42,11 @@ type UndoSnapshot = {
 const UserStateContext = createContext<UserStateContextValue | null>(null);
 
 /**
- * Same six movies the For You watchlist tab used to seed locally. Ids only,
- * so this file never needs to read the placeholder catalog.
+ * TMDB ids of the six movies the in-session watchlist starts with: Dune,
+ * Poor Things, The Holdovers, Oppenheimer, Past Lives, Barbie. Ids only;
+ * pages resolve them to catalog rows with useMoviesByIds.
  */
-const DEFAULT_WATCHLIST_IDS = [1, 2, 3, 4, 5, 6];
+const DEFAULT_WATCHLIST_IDS = [438631, 792307, 840430, 872585, 666277, 346698];
 
 function defaultUserMovie(movieId: number): UserMovie {
   return {
