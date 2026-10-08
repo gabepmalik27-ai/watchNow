@@ -7,30 +7,28 @@ WatchNow is a movie discovery and recommendation web app built for CSC 371 at Wa
 Design spec: `docs/design-spec.pdf`
 Reference screenshot: `docs/rate-page-screenshot.png`
 
-## Current phase: DATA (Supabase + TMDB catalog)
+## Current phase: ACCOUNTS (Supabase Auth + per-user persistence)
 
-The frontend shell is complete: all five routes render, navigation works, and shared components exist. We are now replacing hardcoded placeholder data with a real movie catalog backed by Supabase and populated from TMDB.
+The shell is complete and the catalog is live in Supabase (populated from TMDB). We are now adding user accounts so ratings, watched state and the watchlist persist per user.
 
 **In scope:**
-- Supabase Postgres schema and migrations for the movie catalog (fields mirror `types/movie.ts`)
-- Server-side TMDB ingestion that populates the catalog (TMDB is called only from server code, never from the browser)
-- Reading catalog data from Supabase in pages and components
-- Server-only route handlers or server actions that the catalog work requires
-- Environment variables for Supabase and TMDB (see `.env.example`); secrets stay server-only
-- Retiring `lib/placeholder-data.ts` once the catalog replaces it
-- Poster and backdrop images loaded from `image.tmdb.org` via a `next/image` custom loader (`lib/tmdb-image.ts`)
+- Supabase Auth with email + password (no magic links, no OAuth), via `@supabase/ssr` cookie sessions and a `middleware.ts` that refreshes them
+- Gating `/rate`, `/recommend` and `/for-you` behind a session (Home and Search stay public)
+- Supabase migrations for `profiles` and `user_movies`, protected by row-level security
+- Per-user persistence of ratings, watched, watchlist and not-interested state (optimistic UI with rollback)
+- The real display name and counts on For You; deleting `lib/placeholder-data.ts`
+- Everything from the data phase: catalog reads from Supabase, server-only TMDB ingestion, posters via `lib/tmdb-image.ts`
 - Preserving all shell behavior, design tokens, and accessibility rules
 
 **Explicitly out of scope — do not build these:**
-- Authentication or user accounts
-- Per-user persistence of ratings or watched state (stays in-session React Context)
 - Any recommendation scoring logic
 - Any LLM or Anthropic API integration
-- `localStorage`, `sessionStorage`, cookies, or any browser persistence
-- Deployment, CI, Vercel config (sole exception: adding `image.tmdb.org` to `remotePatterns` in `next.config.ts`)
+- `localStorage`, `sessionStorage`, app-set cookies, or any other browser persistence (sole exception: the Supabase auth session cookies managed by `@supabase/ssr`)
+- Deployment, CI, Vercel config (sole exception: `image.tmdb.org` in `remotePatterns` in `next.config.ts`)
 
 Constraints:
 - `SUPABASE_SERVICE_ROLE_KEY` and `TMDB_READ_TOKEN` are server-only. Never import them into client components or prefix them with `NEXT_PUBLIC_`.
+- The service role key is never used in app code (`app/`, `components/`, `lib/`, `middleware.ts`). Only `scripts/` may use it. App code talks to Supabase with the anon key, and RLS is what protects user data.
 - Do not commit secrets. Only `.env.example` is tracked.
 - Schema changes go through migrations, not ad-hoc edits.
 
@@ -85,7 +83,7 @@ If a task seems to require something out of scope, stop and flag it instead of b
 
 ## Definition of "shell" (phase complete)
 
-Every page is a finished-looking container with placeholder contents. Navigation works. Components render in every visual state. Nothing computes anything. A visitor should be able to click through all five pages and see what the app will look like, while no real logic exists underneath. This holds as the baseline during the data phase: real data must not break any shell state.
+Every page is a finished-looking container with placeholder contents. Navigation works. Components render in every visual state. Nothing computes anything. A visitor should be able to click through all five pages and see what the app will look like, while no real logic exists underneath. This holds as the baseline during the data and accounts phases: real data and signed-out or brand-new-user states must not break any shell state.
 
 ## Working style
 
