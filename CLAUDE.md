@@ -8,30 +8,34 @@ Full product spec: `docs/PROJECT_SPEC.md`
 Visual design spec: `docs/design-spec.pdf`
 Reference screenshot: `docs/rate-page-screenshot.png`
 
-## Current phase: FRONTEND SHELL ONLY
+## Current phase: DATA (Supabase + TMDB catalog)
 
-We are building the visual and navigational shell. Nothing else.
+The frontend shell is complete: all five routes render, navigation works, and shared components exist. We are now replacing hardcoded placeholder data with a real movie catalog backed by Supabase and populated from TMDB.
 
 **In scope:**
-- All five routes render and are reachable via global navigation
-- Layout, typography, color, spacing match the design spec
-- Reusable components built once and shared
-- Minimal placeholder entries from `lib/placeholder-data.ts` (a hardcoded array, nothing more)
-- In-session interaction state (React Context, memory only)
-- Responsive behavior at three breakpoints
+- Supabase Postgres schema and migrations for the movie catalog (fields mirror `types/movie.ts`)
+- Server-side TMDB ingestion that populates the catalog (TMDB is called only from server code, never from the browser)
+- Reading catalog data from Supabase in pages and components
+- Server-only route handlers or server actions that the catalog work requires
+- Environment variables for Supabase and TMDB (see `.env.example`); secrets stay server-only
+- Retiring `lib/placeholder-data.ts` once the catalog replaces it
+- Preserving all shell behavior, design tokens, and accessibility rules
 
 **Explicitly out of scope — do not build these:**
-- Any database, ORM, or schema
-- Any API route handlers
-- Any call to TMDB or any external API
-- Any authentication or user accounts
+- Authentication or user accounts
+- Per-user persistence of ratings or watched state (stays in-session React Context)
 - Any recommendation scoring logic
 - Any LLM or Anthropic API integration
-- `localStorage`, `sessionStorage`, cookies, or any persistence
-- Real poster images fetched over the network
-- Deployment, CI, Vercel config, or environment variables
+- `localStorage`, `sessionStorage`, cookies, or any browser persistence
+- Real poster images fetched over the network (posters stay flat color blocks)
+- Deployment, CI, Vercel config
 
-If a task seems to require one of the above, stop and flag it instead of building it.
+Constraints:
+- `SUPABASE_SERVICE_ROLE_KEY` and `TMDB_READ_TOKEN` are server-only. Never import them into client components or prefix them with `NEXT_PUBLIC_`.
+- Do not commit secrets. Only `.env.example` is tracked.
+- Schema changes go through migrations, not ad-hoc edits.
+
+If a task seems to require something out of scope, stop and flag it instead of building it.
 
 ## Hard rules
 
@@ -39,7 +43,7 @@ If a task seems to require one of the above, stop and flag it instead of buildin
 2. **Brand is "WatchNow"** everywhere — UI text, page titles, metadata, route names, mock data, alt text, README. Never "WatchNext".
 3. **Ratings are 0.5–5.0 in half-star increments.** Not 1–5.
 4. **`Watched` and `Rated` are independent states.** A movie can be watched but unrated. Never couple them in a single boolean.
-5. **Placeholder data shape is a contract.** `lib/placeholder-data.ts` uses the field names in `types/movie.ts`, which mirror the eventual database schema. Do not rename fields for convenience. When real data arrives, only the import changes. This file exists so layouts have something to render — it is not a data layer, and nothing may read from it except components.
+5. **`types/movie.ts` is the data contract.** The Supabase schema and any placeholder data use its field names. Do not rename fields for convenience. Map TMDB fields to this shape at ingestion; components never see raw TMDB responses.
 6. **Posters are flat color blocks**, generated deterministically from movie id. No network image requests.
 
 ## Design tokens — use these exact values
@@ -80,9 +84,9 @@ If a task seems to require one of the above, stop and flag it instead of buildin
 - Touch targets minimum 44px
 - Text alternatives for any chart
 
-## Definition of "shell"
+## Definition of "shell" (phase complete)
 
-Every page is a finished-looking container with placeholder contents. Navigation works. Components render in every visual state. Nothing computes anything. A visitor should be able to click through all five pages and see what the app will look like, while no real logic exists underneath.
+Every page is a finished-looking container with placeholder contents. Navigation works. Components render in every visual state. Nothing computes anything. A visitor should be able to click through all five pages and see what the app will look like, while no real logic exists underneath. This holds as the baseline during the data phase: real data must not break any shell state.
 
 ## Working style
 
