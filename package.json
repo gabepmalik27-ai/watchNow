@@ -7,12 +7,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "check-env": "tsx --env-file=.env.local scripts/check-env.ts"
+    "check-env": "tsx --env-file=.env.local scripts/check-env.ts",
+    "seed": "tsx --env-file=.env.local scripts/seed-movies.ts",
+    "check-secrets": "tsx --env-file=.env.local scripts/check-build-secrets.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.3",
     "next": "15.5.27",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

@@ -1,11 +1,11 @@
 import { PosterBlock } from "@/components/movie/PosterBlock";
 import { cx } from "@/lib/cx";
-import type { Movie, UserMovie } from "@/types/movie";
+import type { CatalogMovie, UserMovie } from "@/types/movie";
 
 type PosterButtonProps = {
-  movie: Movie;
+  movie: CatalogMovie;
   userMovie?: UserMovie;
-  onOpen: (movie: Movie, trigger: HTMLButtonElement) => void;
+  onOpen: (movie: CatalogMovie, trigger: HTMLButtonElement) => void;
   className?: string;
 };
 
@@ -24,7 +24,7 @@ export function PosterButton({ movie, userMovie, onOpen, className }: PosterButt
       )}
     >
       <div className="relative">
-        <PosterBlock movieId={movie.id} />
+        <PosterBlock movie={movie} />
         {rating !== null ? (
           <span className="absolute right-2 top-2 rounded-full bg-midnight/80 px-2 py-0.5 text-xs font-semibold text-text">
             <span className="text-rating" aria-hidden="true">
