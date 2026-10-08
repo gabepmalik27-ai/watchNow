@@ -1,11 +1,11 @@
 import { PosterBlock } from "@/components/movie/PosterBlock";
 import { cx } from "@/lib/cx";
-import type { Movie, UserMovie } from "@/types/movie";
+import type { CatalogMovie, UserMovie } from "@/types/movie";
 
 type PosterButtonProps = {
-  movie: Movie;
+  movie: CatalogMovie;
   userMovie?: UserMovie;
-  onOpen: (movie: Movie, trigger: HTMLButtonElement) => void;
+  onOpen: (movie: CatalogMovie, trigger: HTMLButtonElement) => void;
   className?: string;
 };
 

@@ -8,10 +8,10 @@ const GENRE_ROWS = ["Sci-Fi", "Drama", "Comedy"];
 export default function HomePage() {
   const trending = placeholderMovies.slice(0, 10);
   const newReleases = [...placeholderMovies]
-    .sort((a, b) => b.release_year - a.release_year)
+    .sort((a, b) => (b.release_year ?? 0) - (a.release_year ?? 0))
     .slice(0, 10);
   const topRated = [...placeholderMovies]
-    .sort((a, b) => b.vote_average - a.vote_average)
+    .sort((a, b) => (b.vote_average ?? 0) - (a.vote_average ?? 0))
     .slice(0, 10);
   const genreRows = GENRE_ROWS.map((genre) => ({
     genre,

@@ -1,11 +1,11 @@
-import type { Movie, UserProfile } from "@/types/movie";
+import type { CatalogMovie, UserProfile } from "@/types/movie";
 
 /**
  * Hardcoded placeholder catalog. Field names mirror the eventual database
  * schema (see types/movie.ts) — do not rename them. Nothing outside
  * components may import from this file.
  */
-export const placeholderMovies: Movie[] = [
+export const placeholderMovies: CatalogMovie[] = [
   {
     id: 1,
     title: "Dune",
@@ -15,6 +15,10 @@ export const placeholderMovies: Movie[] = [
       "A young heir travels to a dangerous desert planet to secure his family's future.",
     vote_average: 8.0,
     genres: ["Sci-Fi", "Adventure"],
+    poster_path: null,
+    backdrop_path: null,
+    director: null,
+    top_cast: [],
   },
   {
     id: 2,
@@ -25,6 +29,10 @@ export const placeholderMovies: Movie[] = [
       "A reanimated young woman sets off on a whirlwind adventure of self-discovery.",
     vote_average: 8.0,
     genres: ["Comedy", "Drama"],
+    poster_path: null,
+    backdrop_path: null,
+    director: null,
+    top_cast: [],
   },
   {
     id: 3,
@@ -35,6 +43,10 @@ export const placeholderMovies: Movie[] = [
       "A grumpy teacher, a troubled student, and a grieving cook are stuck together over winter break.",
     vote_average: 7.9,
     genres: ["Comedy", "Drama"],
+    poster_path: null,
+    backdrop_path: null,
+    director: null,
+    top_cast: [],
   },
   {
     id: 4,
@@ -45,6 +57,10 @@ export const placeholderMovies: Movie[] = [
       "The story of the physicist who helped build the atomic bomb and lived with its consequences.",
     vote_average: 8.3,
     genres: ["Drama", "History"],
+    poster_path: null,
+    backdrop_path: null,
+    director: null,
+    top_cast: [],
   },
   {
     id: 5,
@@ -55,6 +71,10 @@ export const placeholderMovies: Movie[] = [
       "Childhood friends reunite in New York after decades apart to confront what might have been.",
     vote_average: 7.8,
     genres: ["Drama", "Romance"],
+    poster_path: null,
+    backdrop_path: null,
+    director: null,
+    top_cast: [],
   },
   {
     id: 6,
@@ -65,6 +85,10 @@ export const placeholderMovies: Movie[] = [
       "A doll living in an idealized world sets out for the real world in search of true happiness.",
     vote_average: 7.0,
     genres: ["Comedy", "Fantasy"],
+    poster_path: null,
+    backdrop_path: null,
+    director: null,
+    top_cast: [],
   },
   {
     id: 7,
@@ -75,6 +99,10 @@ export const placeholderMovies: Movie[] = [
       "A teenage hero travels across the multiverse and meets an entire team of Spider-People.",
     vote_average: 8.4,
     genres: ["Animation", "Action"],
+    poster_path: null,
+    backdrop_path: null,
+    director: null,
+    top_cast: [],
   },
   {
     id: 8,
@@ -85,6 +113,10 @@ export const placeholderMovies: Movie[] = [
       "An astronaut stranded on Mars must improvise a way to survive and signal for rescue.",
     vote_average: 8.0,
     genres: ["Sci-Fi", "Drama"],
+    poster_path: null,
+    backdrop_path: null,
+    director: null,
+    top_cast: [],
   },
   {
     id: 9,
@@ -95,6 +127,10 @@ export const placeholderMovies: Movie[] = [
       "Explorers travel through a wormhole in space to ensure humanity's survival.",
     vote_average: 8.6,
     genres: ["Sci-Fi", "Drama"],
+    poster_path: null,
+    backdrop_path: null,
+    director: null,
+    top_cast: [],
   },
   {
     id: 10,
@@ -105,6 +141,10 @@ export const placeholderMovies: Movie[] = [
       "A detective investigates the death of a patriarch amid a family full of suspects and secrets.",
     vote_average: 7.9,
     genres: ["Mystery", "Comedy"],
+    poster_path: null,
+    backdrop_path: null,
+    director: null,
+    top_cast: [],
   },
   {
     id: 11,
@@ -115,6 +155,10 @@ export const placeholderMovies: Movie[] = [
       "An aspiring actress and a dedicated jazz musician fall in love while pursuing their dreams.",
     vote_average: 8.0,
     genres: ["Musical", "Romance"],
+    poster_path: null,
+    backdrop_path: null,
+    director: null,
+    top_cast: [],
   },
   {
     id: 12,
@@ -125,6 +169,10 @@ export const placeholderMovies: Movie[] = [
       "A linguist is recruited to communicate with mysterious visitors before global panic escalates.",
     vote_average: 7.9,
     genres: ["Sci-Fi", "Drama"],
+    poster_path: null,
+    backdrop_path: null,
+    director: null,
+    top_cast: [],
   },
   {
     id: 13,
@@ -135,6 +183,10 @@ export const placeholderMovies: Movie[] = [
       "A new blade runner unearths a secret that could plunge what's left of society into chaos.",
     vote_average: 8.0,
     genres: ["Sci-Fi", "Drama"],
+    poster_path: null,
+    backdrop_path: null,
+    director: null,
+    top_cast: [],
   },
   {
     id: 14,
@@ -145,6 +197,10 @@ export const placeholderMovies: Movie[] = [
       "A lonely writer develops an unlikely relationship with an operating system designed to meet his needs.",
     vote_average: 8.0,
     genres: ["Romance", "Sci-Fi"],
+    poster_path: null,
+    backdrop_path: null,
+    director: null,
+    top_cast: [],
   },
   {
     id: 15,
@@ -155,6 +211,10 @@ export const placeholderMovies: Movie[] = [
       "An overwhelmed woman discovers she must connect with parallel versions of herself to save the multiverse.",
     vote_average: 8.0,
     genres: ["Sci-Fi", "Comedy"],
+    poster_path: null,
+    backdrop_path: null,
+    director: null,
+    top_cast: [],
   },
   {
     id: 16,
@@ -165,6 +225,10 @@ export const placeholderMovies: Movie[] = [
       "A thief who steals secrets through dream infiltration is offered a chance to erase his past.",
     vote_average: 8.8,
     genres: ["Sci-Fi", "Action"],
+    poster_path: null,
+    backdrop_path: null,
+    director: null,
+    top_cast: [],
   },
   {
     id: 17,
@@ -175,6 +239,10 @@ export const placeholderMovies: Movie[] = [
       "A commandant and his family build an idyllic life next door to the camp he oversees.",
     vote_average: 7.6,
     genres: ["Drama", "History"],
+    poster_path: null,
+    backdrop_path: null,
+    director: null,
+    top_cast: [],
   },
   {
     id: 18,
@@ -185,6 +253,10 @@ export const placeholderMovies: Movie[] = [
       "A woman's life is scrutinized after her husband is found dead outside their mountain home.",
     vote_average: 7.7,
     genres: ["Drama", "Mystery"],
+    poster_path: null,
+    backdrop_path: null,
+    director: null,
+    top_cast: [],
   },
   {
     id: 19,
@@ -195,6 +267,10 @@ export const placeholderMovies: Movie[] = [
       "A vigilante detective unravels corruption in Gotham while pursuing a serial killer.",
     vote_average: 7.8,
     genres: ["Action", "Crime"],
+    poster_path: null,
+    backdrop_path: null,
+    director: null,
+    top_cast: [],
   },
   {
     id: 20,
@@ -205,6 +281,10 @@ export const placeholderMovies: Movie[] = [
       "A legendary concierge and his protégé become entangled in a theft and inheritance scheme.",
     vote_average: 8.1,
     genres: ["Comedy", "Adventure"],
+    poster_path: null,
+    backdrop_path: null,
+    director: null,
+    top_cast: [],
   },
 ];
 

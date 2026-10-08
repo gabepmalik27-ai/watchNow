@@ -6,6 +6,7 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterChip } from "@/components/ui/FilterChip";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { formatAudienceRating } from "@/lib/format";
 import { placeholderMovies } from "@/lib/placeholder-data";
 
 const MOOD = ["Funny", "Exciting", "Relaxing"];
@@ -140,7 +141,7 @@ export default function RecommendPage() {
                   <p className="text-xs text-muted">
                     {movie.release_year} ·{" "}
                     <span className="text-rating">★</span>{" "}
-                    {(movie.vote_average / 2).toFixed(1)}
+                    {formatAudienceRating(movie.vote_average)}
                   </p>
                   <p className="text-xs text-muted">{movie.overview}</p>
                 </div>

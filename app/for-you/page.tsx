@@ -10,6 +10,7 @@ import { Panel } from "@/components/ui/Panel";
 import { StarRating } from "@/components/ui/StarRating";
 import { StatCard } from "@/components/ui/StatCard";
 import { Tabs, type TabItem } from "@/components/ui/Tabs";
+import { formatAudienceRating } from "@/lib/format";
 import { placeholderMovies, placeholderProfile } from "@/lib/placeholder-data";
 import { useUserState } from "@/lib/user-state";
 
@@ -186,7 +187,7 @@ export default function ForYouPage() {
                   <p className="text-xs text-muted">
                     {movie.release_year} ·{" "}
                     <span className="text-rating">★</span>{" "}
-                    {(movie.vote_average / 2).toFixed(1)}
+                    {formatAudienceRating(movie.vote_average)}
                   </p>
                 </div>
               ))}

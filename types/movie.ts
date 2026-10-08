@@ -1,12 +1,39 @@
+/** One row of public.movies (supabase/migrations/0001_movies.sql). */
 export type Movie = {
-  id: number; // TMDB id — this is the real primary key later
+  id: number; // TMDB id, primary key of public.movies
   title: string;
-  release_year: number;
-  runtime_min: number;
-  overview: string;
-  vote_average: number; // 0–10, as TMDB returns it
+  overview: string | null;
+  release_date: string | null; // ISO yyyy-mm-dd
+  release_year: number | null; // generated from release_date
+  runtime_min: number | null;
+  vote_average: number | null; // 0–10, as TMDB returns it
+  vote_count: number | null;
+  popularity: number | null;
+  original_language: string | null;
+  poster_path: string | null;
+  backdrop_path: string | null;
   genres: string[];
+  keywords: string[];
+  director: string | null;
+  top_cast: string[];
+  tmdb_synced_at: string; // ISO timestamp
 };
+
+/** The columns lib/catalog.ts selects for the UI. A full Movie is assignable to it. */
+export type CatalogMovie = Pick<
+  Movie,
+  | "id"
+  | "title"
+  | "overview"
+  | "release_year"
+  | "runtime_min"
+  | "vote_average"
+  | "poster_path"
+  | "backdrop_path"
+  | "genres"
+  | "director"
+  | "top_cast"
+>;
 
 export type UserMovie = {
   movie_id: number;

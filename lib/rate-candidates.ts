@@ -1,4 +1,4 @@
-import type { Movie, UserMovie } from "@/types/movie";
+import type { UserMovie } from "@/types/movie";
 
 /**
  * Movies worth asking "have you seen this?" about: not watched, not dismissed,
@@ -9,7 +9,10 @@ import type { Movie, UserMovie } from "@/types/movie";
  * The catalog is passed in (rather than imported here) because only
  * components may read lib/placeholder-data.ts.
  */
-export function getRateCandidates(movies: Movie[], userMovies: UserMovie[]): Movie[] {
+export function getRateCandidates<T extends { id: number }>(
+  movies: T[],
+  userMovies: UserMovie[],
+): T[] {
   const byId = new Map(userMovies.map((um) => [um.movie_id, um]));
   return movies.filter((movie) => {
     const um = byId.get(movie.id);

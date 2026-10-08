@@ -4,11 +4,12 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PosterBlock } from "@/components/movie/PosterBlock";
 import { FilterChip } from "@/components/ui/FilterChip";
 import { StarRating } from "@/components/ui/StarRating";
+import { formatAudienceRating, formatMovieMeta } from "@/lib/format";
 import { useUserState } from "@/lib/user-state";
-import type { Movie } from "@/types/movie";
+import type { CatalogMovie } from "@/types/movie";
 
 type MovieDetailDialogProps = {
-  movie: Movie | null;
+  movie: CatalogMovie | null;
   onClose: () => void;
   /**
    * Rendered inside the <dialog>. A modal dialog makes everything outside it
@@ -23,7 +24,7 @@ export function MovieDetailDialog({ movie, onClose, children }: MovieDetailDialo
 
   // Keep rendering the last movie while the closing animation/unmount settles,
   // so content doesn't blank out the moment `movie` becomes null.
-  const [shown, setShown] = useState<Movie | null>(movie);
+  const [shown, setShown] = useState<CatalogMovie | null>(movie);
   if (movie && movie !== shown) setShown(movie);
 
   useEffect(() => {
@@ -82,12 +83,11 @@ export function MovieDetailDialog({ movie, onClose, children }: MovieDetailDialo
                 {current.title}
               </h2>
               <p className="text-sm text-muted">
-                {current.release_year} · {current.runtime_min} min ·{" "}
-                {current.genres.join(", ")}
+                {formatMovieMeta(current)}
               </p>
             </div>
 
-            <p className="text-sm text-text">{current.overview}</p>
+            {current.overview ? <p className="text-sm text-text">{current.overview}</p> : null}
 
             <p className="text-sm text-muted">
               Audience{" "}
@@ -95,7 +95,7 @@ export function MovieDetailDialog({ movie, onClose, children }: MovieDetailDialo
                 <span className="text-rating" aria-hidden="true">
                   ★
                 </span>{" "}
-                {(current.vote_average / 2).toFixed(1)}
+                {formatAudienceRating(current.vote_average)}
               </span>
             </p>
 

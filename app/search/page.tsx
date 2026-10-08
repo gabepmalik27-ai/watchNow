@@ -7,6 +7,7 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterChip } from "@/components/ui/FilterChip";
 import { Panel } from "@/components/ui/Panel";
+import { formatAudienceRating, formatMovieMeta } from "@/lib/format";
 import { placeholderMovies } from "@/lib/placeholder-data";
 
 /**
@@ -111,12 +112,11 @@ export default function SearchPage() {
                       {topResult.title}
                     </h3>
                     <p className="text-sm text-muted">
-                      {topResult.release_year} · {topResult.runtime_min} min ·{" "}
-                      {topResult.genres.join(", ")}
+                      {formatMovieMeta(topResult)}
                     </p>
                     <p className="text-sm text-text">{topResult.overview}</p>
                     <p className="text-sm text-rating">
-                      ★ {(topResult.vote_average / 2).toFixed(1)}
+                      ★ {formatAudienceRating(topResult.vote_average)}
                     </p>
                   </div>
                 </Panel>

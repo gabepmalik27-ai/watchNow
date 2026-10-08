@@ -2,14 +2,14 @@
 
 import { useRef, type ReactNode } from "react";
 import { MovieCard } from "@/components/movie/MovieCard";
-import type { Movie } from "@/types/movie";
+import type { CatalogMovie } from "@/types/movie";
 
 type MovieRowProps = {
   title: string;
-  movies: Movie[];
+  movies: CatalogMovie[];
   onSeeAll?: () => void;
   /** Override how each movie renders. Defaults to MovieCard. */
-  renderItem?: (movie: Movie) => ReactNode;
+  renderItem?: (movie: CatalogMovie) => ReactNode;
 };
 
 const SCROLL_STEP = 320;

@@ -10,17 +10,17 @@ import { Toast } from "@/components/ui/Toast";
 import { getRateCandidates } from "@/lib/rate-candidates";
 import { placeholderMovies } from "@/lib/placeholder-data";
 import { useUserState } from "@/lib/user-state";
-import type { Movie } from "@/types/movie";
+import type { CatalogMovie } from "@/types/movie";
 
 export default function RatePage() {
   const { userMovies, getUserMovie, ratedCount, lastRating, undoLastRating } =
     useUserState();
   const [dismissedToken, setDismissedToken] = useState(0);
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<Movie | null>(null);
+  const [selected, setSelected] = useState<CatalogMovie | null>(null);
   const openerRef = useRef<HTMLButtonElement | null>(null);
 
-  function openMovie(movie: Movie, trigger: HTMLButtonElement) {
+  function openMovie(movie: CatalogMovie, trigger: HTMLButtonElement) {
     openerRef.current = trigger;
     setSelected(movie);
   }
@@ -36,7 +36,7 @@ export default function RatePage() {
 
   const byId = new Map(placeholderMovies.map((m) => [m.id, m]));
   const toMovies = (ids: number[]) =>
-    ids.map((id) => byId.get(id)).filter((m): m is Movie => Boolean(m));
+    ids.map((id) => byId.get(id)).filter((m): m is CatalogMovie => Boolean(m));
 
   const watchlist = toMovies(
     userMovies.filter((um) => um.on_watchlist && !um.watched).map((um) => um.movie_id),
@@ -69,7 +69,7 @@ export default function RatePage() {
       />
     ) : null;
 
-  const renderPoster = (movie: Movie) => (
+  const renderPoster = (movie: CatalogMovie) => (
     <PosterButton movie={movie} userMovie={getUserMovie(movie.id)} onOpen={openMovie} />
   );
 

@@ -1,14 +1,15 @@
 import { PosterBlock } from "@/components/movie/PosterBlock";
 import { cx } from "@/lib/cx";
-import type { Movie } from "@/types/movie";
+import { formatAudienceRating } from "@/lib/format";
+import type { CatalogMovie } from "@/types/movie";
 
 type MovieCardProps = {
-  movie: Movie;
+  movie: CatalogMovie;
   className?: string;
 };
 
 export function MovieCard({ movie, className }: MovieCardProps) {
-  const displayRating = (movie.vote_average / 2).toFixed(1);
+  const displayRating = formatAudienceRating(movie.vote_average);
 
   return (
     <button
@@ -26,12 +27,22 @@ export function MovieCard({ movie, className }: MovieCardProps) {
       <div className="px-1 pt-2">
         <p className="truncate text-sm font-medium text-text">{movie.title}</p>
         <div className="mt-0.5 flex items-center gap-2 text-xs text-muted">
-          <span>{movie.release_year}</span>
-          <span aria-hidden="true">·</span>
+          {movie.release_year !== null ? (
+            <>
+              <span>{movie.release_year}</span>
+              <span aria-hidden="true">·</span>
+            </>
+          ) : null}
           <span className="text-rating" aria-hidden="true">
             ★
           </span>
-          <span aria-label={`Rated ${displayRating} out of 5`}>
+          <span
+            aria-label={
+              movie.vote_average === null
+                ? "No audience rating"
+                : `Rated ${displayRating} out of 5`
+            }
+          >
             {displayRating}
           </span>
         </div>
