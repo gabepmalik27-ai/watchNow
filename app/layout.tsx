@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
 import { UserStateProvider } from "@/lib/user-state";
 import "./globals.css";
@@ -28,7 +29,10 @@ export default function RootLayout({
       >
         <UserStateProvider>
           <Header />
-          <div className="pb-16 tablet:pb-0">{children}</div>
+          <div className="pb-16 tablet:pb-0">
+            {children}
+            <Footer />
+          </div>
           <BottomNav />
         </UserStateProvider>
       </body>
