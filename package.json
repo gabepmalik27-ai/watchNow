@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "check-env": "tsx --env-file=.env.local scripts/check-env.ts",
-    "seed": "tsx --env-file=.env.local scripts/seed-movies.ts"
+    "seed": "tsx --env-file=.env.local scripts/seed-movies.ts",
+    "check-secrets": "tsx --env-file=.env.local scripts/check-build-secrets.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",
