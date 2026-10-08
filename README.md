@@ -4,15 +4,16 @@ A movie discovery and recommendation web app built for CSC 371 at Wake
 Forest. WatchNow helps you discover, rate, and decide what to watch —
 you don't watch movies inside the app itself.
 
-## Current phase: Frontend Shell
+## Current phase: Data (Supabase + TMDB catalog)
 
-This repo currently contains the **visual and navigational shell only**.
-All five routes render, are reachable from the global navigation, and use
-mocked placeholder data (`lib/placeholder-data.ts`) and in-memory session
-state (`lib/user-state.tsx`, no persistence — a refresh resets it).
+All five routes read a real movie catalog: a Supabase `movies` table
+(`supabase/migrations/0001_movies.sql`) seeded from TMDB by
+`npm run seed` (`scripts/seed-movies.ts`). Pages query it only through
+`lib/catalog.ts`; posters load from TMDB's image CDN. Ratings, watched
+state and the watchlist are still in-memory session state
+(`lib/user-state.tsx`, no persistence — a refresh resets it).
 
-There is intentionally no database, no API routes, no external API calls
-(TMDB or otherwise), no authentication, and no real recommendation logic
+There is intentionally no authentication and no real recommendation logic
 yet. See `CLAUDE.md` for the full list of what's in and out of scope for
 this phase, plus the design tokens and hard rules the UI follows.
 
@@ -31,17 +32,27 @@ Requires Node 20+.
 git clone https://github.com/gabepmalik27-ai/watchNow.git
 cd watchNow
 npm install
+cp .env.example .env.local   # then fill in the four values
+npm run check-env            # verifies names/format and connectivity
 npm run dev
 ```
 
+First-time database setup:
+
+1. Paste `supabase/migrations/0001_movies.sql` into the Supabase SQL editor
+   and run it.
+2. `npm run seed -- --limit 100` for a quick test, then `npm run seed` for
+   the full ~5,000-movie catalog. Reruns are safe (rows are upserted by id).
+
 Open [http://localhost:3000](http://localhost:3000). The app is
-localhost-only for this phase — there's no deployment, CI, or environment
-configuration yet.
+localhost-only for this phase — there's no deployment or CI yet.
 
 ## Stack
 
 - Next.js 15 (App Router), TypeScript (strict), Tailwind CSS v4
-- React Context for in-session state — no `localStorage`, no database
+- Supabase Postgres (catalog, read through RLS with the anon key)
+- TMDB API (seed script only) and TMDB image CDN (posters)
+- React Context for in-session user state — no `localStorage`
 
 ## Team
 

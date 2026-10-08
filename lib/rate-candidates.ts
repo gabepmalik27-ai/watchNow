@@ -6,8 +6,8 @@ import type { UserMovie } from "@/types/movie";
  *
  * Stand-in until the recommender (roadmap step 6) replaces this.
  *
- * The catalog is passed in (rather than imported here) because only
- * components may read lib/placeholder-data.ts.
+ * The candidate pool is passed in (fetched on the server by
+ * getCandidatePool) so this stays a pure filter usable from client code.
  */
 export function getRateCandidates<T extends { id: number }>(
   movies: T[],
