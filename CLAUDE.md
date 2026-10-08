@@ -4,8 +4,7 @@
 
 WatchNow is a movie discovery and recommendation web app built for CSC 371 at Wake Forest. Users do not watch movies here. The app helps them discover, rate, and decide what to watch.
 
-Full product spec: `docs/PROJECT_SPEC.md`
-Visual design spec: `docs/design-spec.pdf`
+Design spec: `docs/design-spec.pdf`
 Reference screenshot: `docs/rate-page-screenshot.png`
 
 ## Current phase: DATA (Supabase + TMDB catalog)
@@ -19,6 +18,7 @@ The frontend shell is complete: all five routes render, navigation works, and sh
 - Server-only route handlers or server actions that the catalog work requires
 - Environment variables for Supabase and TMDB (see `.env.example`); secrets stay server-only
 - Retiring `lib/placeholder-data.ts` once the catalog replaces it
+- Poster and backdrop images loaded from `image.tmdb.org` via a `next/image` custom loader (`lib/tmdb-image.ts`)
 - Preserving all shell behavior, design tokens, and accessibility rules
 
 **Explicitly out of scope — do not build these:**
@@ -27,8 +27,7 @@ The frontend shell is complete: all five routes render, navigation works, and sh
 - Any recommendation scoring logic
 - Any LLM or Anthropic API integration
 - `localStorage`, `sessionStorage`, cookies, or any browser persistence
-- Real poster images fetched over the network (posters stay flat color blocks)
-- Deployment, CI, Vercel config
+- Deployment, CI, Vercel config (sole exception: adding `image.tmdb.org` to `remotePatterns` in `next.config.ts`)
 
 Constraints:
 - `SUPABASE_SERVICE_ROLE_KEY` and `TMDB_READ_TOKEN` are server-only. Never import them into client components or prefix them with `NEXT_PUBLIC_`.
@@ -44,7 +43,7 @@ If a task seems to require something out of scope, stop and flag it instead of b
 3. **Ratings are 0.5–5.0 in half-star increments.** Not 1–5.
 4. **`Watched` and `Rated` are independent states.** A movie can be watched but unrated. Never couple them in a single boolean.
 5. **`types/movie.ts` is the data contract.** The Supabase schema and any placeholder data use its field names. Do not rename fields for convenience. Map TMDB fields to this shape at ingestion; components never see raw TMDB responses.
-6. **Posters are flat color blocks**, generated deterministically from movie id. No network image requests.
+6. **Posters come from TMDB via `lib/tmdb-image.ts`;** the flat color block (generated deterministically from movie id) is only the fallback when `poster_path` is null.
 
 ## Design tokens — use these exact values
 
