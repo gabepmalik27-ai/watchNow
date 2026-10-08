@@ -12,6 +12,7 @@
     "check-secrets": "tsx --env-file=.env.local scripts/check-build-secrets.ts"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.3",
     "next": "15.5.27",
     "react": "19.1.0",
