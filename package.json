@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
     "check-env": "tsx --env-file=.env.local scripts/check-env.ts",
     "seed": "tsx --env-file=.env.local scripts/seed-movies.ts",
     "check-secrets": "tsx --env-file=.env.local scripts/check-build-secrets.ts"
@@ -29,6 +30,7 @@
     "eslint-config-next": "15.5.27",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.11"
   }
 }
