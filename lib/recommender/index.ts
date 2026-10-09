@@ -20,7 +20,7 @@ import {
   scoreCandidates,
   type ScoreBreakdown,
 } from "@/lib/recommender/score";
-import type { RecMovie, RecUserRow } from "@/types/movie";
+import type { CatalogMovie, RecMovie, RecUserRow } from "@/types/movie";
 
 export type { RecommendContext } from "@/lib/recommender/context";
 export type { ScoreBreakdown } from "@/lib/recommender/score";
@@ -139,3 +139,12 @@ export function rankForContext(
     ratedCount: prep.profile.ratedCount,
   };
 }
+
+/** A recommendation with its catalog row, as the API and pages receive it. */
+export type RecommendedMovie = Recommendation & { movie: CatalogMovie };
+
+export type RecommendationResponse = {
+  results: RecommendedMovie[];
+  coldStart: boolean;
+  ratedCount: number;
+};
