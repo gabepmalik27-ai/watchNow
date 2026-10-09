@@ -10,7 +10,8 @@
     "test": "vitest run",
     "check-env": "tsx --env-file=.env.local scripts/check-env.ts",
     "seed": "tsx --env-file=.env.local scripts/seed-movies.ts",
-    "check-secrets": "tsx --env-file=.env.local scripts/check-build-secrets.ts"
+    "check-secrets": "tsx --env-file=.env.local scripts/check-build-secrets.ts",
+    "eval": "tsx --env-file=.env.local scripts/eval-personas.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
