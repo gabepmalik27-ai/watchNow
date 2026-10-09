@@ -17,6 +17,13 @@ export const WEIGHT_WATCHLIST = 0.5;
 /** Base weight of a movie marked "not interested". */
 export const WEIGHT_NOT_INTERESTED = -1.0;
 
+/**
+ * Each movie's weight is clamped to [−WEIGHT_CLIP, +WEIGHT_CLIP] after the
+ * recency decay, before affinities. No single movie can outweigh several
+ * others; generous raters' rare 1★ would otherwise erase a whole genre.
+ */
+export const WEIGHT_CLIP = 1.5;
+
 /** A signal loses half its weight every this many days since updated_at. */
 export const RECENCY_HALF_LIFE_DAYS = 180;
 export const MS_PER_DAY = 86_400_000;

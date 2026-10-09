@@ -27,12 +27,13 @@ No LLM is involved, and no other user's data is read. The same inputs always pro
    - **Watched but not rated:** +0.3
    - **On the watchlist:** +0.5
 3. **Fade old signals.** Multiply `w` by `0.5^(days since updated_at / 180)`. Something you did six months ago counts half as much.
-4. **Score every trait.** For each keyword, genre, director and cast member that appears in your movies:
+4. **Cap any single movie's influence.** Clamp `w` to the range −1.5 … +1.5. No single movie can outweigh several others. Without this, a generous rater's rare 1★ (often −3 or worse against their baseline) would erase a whole genre.
+5. **Score every trait.** For each keyword, genre, director and cast member that appears in your movies:
    `A[trait] = (sum of w over your movies with that trait) / (number of those movies + 2)`.
    - The `+ 2` keeps a trait seen once from looking as certain as one seen ten times.
    - Cast members get half the movie's weight, and only the first 3 billed count.
    - Traits you've never touched score 0.
-5. **Measure how mainstream you are.** `pUser` is the average popularity percentile (0 = least popular, 1 = most popular in the pool) of the movies you weighted positively. It's 0.5 if there are none.
+6. **Measure how mainstream you are.** `pUser` is the average popularity percentile (0 = least popular, 1 = most popular in the pool) of the movies you weighted positively. It's 0.5 if there are none.
 
 ### Step 2: Score each candidate
 
@@ -106,6 +107,7 @@ Every result also carries its full score breakdown. Open Recommend with `?debug=
 | `WEIGHT_WATCHED_UNRATED` | +0.3 | Choosing to watch something is a mild positive signal, weaker than a rating a full star above the baseline (+1). |
 | `WEIGHT_WATCHLIST` | +0.5 | Actively saving a movie expresses interest, but it hasn't been confirmed by watching. It's stronger than a passive "watched" yet below a clearly liked rating. |
 | `WEIGHT_NOT_INTERESTED` | −1.0 | An explicit "no" is as strong as rating a movie one star below your baseline. |
+| `WEIGHT_CLIP` | 1.5 | Weights are clamped to ±1.5 after decay. A full star above the baseline (+1) passes untouched, and so do the fixed signals (±1, +0.5, +0.3). Only outliers are cut: a 1★ from someone whose baseline is 4+ would otherwise be −3 or worse and cancel three or more loved movies sharing a genre. With the clamp, the eval's sci-fi persona keeps a positive Science Fiction affinity (0.22 instead of 0.09). |
 | `RECENCY_HALF_LIFE_DAYS` | 180 | Taste drifts slowly. Six months keeps last year's favourites relevant while letting this month's ratings lead. |
 | `AFFINITY_PSEUDO_COUNT` | 2 | The same idea as the mean prior: a trait seen in one movie gets 1/3 of that movie's weight, not all of it, so single coincidences don't dominate. |
 | `CAST_WEIGHT` | 0.5 | Actors appear in very different films, so sharing an actor says less about a movie than sharing a director or keyword. |
@@ -144,9 +146,9 @@ Interstellar 5, Arrival 5, Blade Runner 2049 4.5, Inception 4.5, 2001: A Space O
   | 5 | **0.9583** | Interstellar, Arrival, 2001 |
   | 4.5 | **0.4583** | Blade Runner 2049, Inception, Ex Machina |
   | 4 | **−0.0417** | Contact, Annihilation, The Martian |
-  | 1 | **−3.0417** | Transformers |
+  | 1 | 1 − 4.0417 = −3.0417, **clamped to −1.5000** | Transformers |
 
-  This user rates generously, so a 4★ is slightly below their baseline and counts as a faint negative.
+  This user rates generously, so a 4★ is slightly below their baseline and counts as a faint negative. Only Transformers is beyond ±1.5, so it is the only weight the clamp changes.
 - **Gravity's keywords** (`A = Σw / (count + 2)`):
 
   | Keyword | Carried by | A |
@@ -164,7 +166,8 @@ Interstellar 5, Arrival 5, Blade Runner 2049 4.5, Inception 4.5, 2001: A Space O
   - Drama is carried by Interstellar, Arrival, BR2049, Ex Machina, Contact and The Martian:
     `(2·0.9583 + 2·0.4583 + 2·(−0.0417)) / (6 + 2) = 2.75 / 8 = 0.3438`.
   - Science Fiction is carried by all 10, Transformers included:
-    `(3·0.9583 + 3·0.4583 + 3·(−0.0417) − 3.0417) / 12 = 1.0833 / 12 = 0.0903`.
+    `(3·0.9583 + 3·0.4583 + 3·(−0.0417) − 1.5) / 12 = 2.625 / 12 = 0.2188`.
+    Without the clamp the −3.0417 would pull it down to 0.0903.
   - Thriller: no rated movie, **0**.
 - **People:** Alfonso Cuarón, Sandra Bullock, George Clooney and Ed Harris appear in none of the rated movies, so all are 0.
 - **`pUser = 0.8924`.** The persona's loved movies are mostly very popular ones.
@@ -173,9 +176,9 @@ Interstellar 5, Arrival 5, Blade Runner 2049 4.5, Inception 4.5, 2001: A Space O
 
 | Feature | Raw | Pool min / max | Feature value |
 |---|---|---|---|
-| keyword | (0.3750 + 0.3194 + 0.3194 + 0 + 0.2292 + 0.3194 + 0.4792 + 0) / √8 = 2.0417 / 2.8284 = **0.7218** | −1.3218 / 0.7218 | Gravity *is* the max, so **1.0000** |
-| genre | (0.3438 + 0.0903 + 0) / 3 = **0.1447** | −0.3735 / 0.3594 | (0.1447 + 0.3735) / (0.3594 + 0.3735) = 0.5182 / 0.7329 = **0.7071** |
-| people | 0 + 0 = **0** | −1.3519 / 0.4074 | 1.3519 / 1.7593 = **0.7684** |
+| keyword | (0.3750 + 0.3194 + 0.3194 + 0 + 0.2292 + 0.3194 + 0.4792 + 0) / √8 = 2.0417 / 2.8284 = **0.7218** | −0.5938 / 0.7218 | Gravity *is* the max, so **1.0000** |
+| genre | (0.3438 + 0.2188 + 0) / 3 = **0.1875** | −0.1372 / 0.3594 | (0.1875 + 0.1372) / (0.3594 + 0.1372) = 0.3247 / 0.4966 = **0.6538** |
+| people | 0 + 0 = **0** | −0.6667 / 0.4074 | 0.6667 / 1.0741 = **0.6207** |
 | quality | R = 7.2, v = 16 736, C = 7.0042: WR = (16736 / 17736)·7.2 + (1000 / 17736)·7.0042 = 6.7940 + 0.3949 = **7.1890** | maps 5 → 0, 9 → 1 | (7.1890 − 5) / 4 = **0.5472** |
 | rarity | Gravity's popularity percentile = 0.6093; target = pUser = 0.8924 | — | 1 − 0.2831 = **0.7169** |
 
@@ -186,23 +189,25 @@ Not cold start (10 ratings) and no context, so the For You weights apply unchang
 | Feature | Weight × value | Contribution |
 |---|---|---|
 | keyword | 0.35 × 1.0000 | 0.3500 |
-| genre | 0.25 × 0.7071 | 0.1768 |
-| people | 0.15 × 0.7684 | 0.1153 |
+| genre | 0.25 × 0.6538 | 0.1635 |
+| people | 0.15 × 0.6207 | 0.0931 |
 | quality | 0.15 × 0.5472 | 0.0821 |
 | rarity | 0.10 × 0.7169 | 0.0717 |
-| **Score** | | **0.7958** |
+| **Score** | | **0.7603** |
+
+Gravity is the persona's #1 result.
 
 ### Reason
 
-Among the anchors (movies rated above the baseline), Interstellar has the largest overlap with Gravity: space station 0.4792 + astronaut 0.3750 + space 0.2292 + Drama 0.3438 + Science Fiction 0.0903 = 1.5175. Next is 2001, at 1.2639, with no Drama. Its two best shared keywords are space station (0.4792) and astronaut (0.3750).
+Among the anchors (movies rated above the baseline), Interstellar has the largest overlap with Gravity: space station 0.4792 + astronaut 0.3750 + space 0.2292 + Drama 0.3438 + Science Fiction 0.2188 = 1.6459. Next is 2001, at 1.3923, with no Drama. Its two best shared keywords are space station (0.4792) and astronaut (0.3750).
 → **"Because you loved Interstellar: space station, astronaut"**
 
 ---
 
 ## 4. Behaviours worth knowing
 
-- **One strongly disliked movie can cancel a genre.** This is by design; see the Interstellar/Martian/Transformers unit test. In the worked example, Transformers 1★ pulls Science Fiction down to 0.09, so keywords carry the sci-fi signal. In `npm run eval` that persona's top 10 drifts toward acclaimed dramas: Drama is shared by most of its loved films and untouched by the 1★. Without the 1★, the same ratings give a 10/10 sci-fi list.
-- **Features are relative to the candidate set.** Min-max rescaling means a feature value says "how this compares with the other candidates", not an absolute strength. When a few movies score very negatively (sequels to a hated movie), an unrelated movie sits around 0.7 rather than 0. That's why Gravity's people feature is 0.77 even though nothing matched.
+- **Outliers are capped, not ignored.** Before `WEIGHT_CLIP`, the sci-fi persona's single Transformers 1★ (w −3.04) cut Science Fiction to 0.09. Its top 10 drifted to acclaimed dramas: **3/10 sci-fi**. With the clamp, the 1★ still counts (−1.5, the strongest negative allowed) but can't outvote the loved films. Science Fiction is 0.22 and the top 10 is **7/10 sci-fi**, led by Gravity. The remaining three (Dead Poets Society, 12 Angry Men, One Flew Over the Cuckoo's Nest) come from Drama, which six of the loved films share.
+- **Features are relative to the candidate set.** Min-max rescaling means a feature value says "how this compares with the other candidates", not an absolute strength. When a few movies score very negatively (sequels to a hated movie), an unrelated movie sits around 0.7 rather than 0. That's why Gravity's people feature is 0.62 even though nothing matched.
 - **A generous rater's 4★ is slightly negative,** because it is below their own baseline. Ratings are read relative to the user, not the scale.
 - **"Niche" means niche among the 2000 most-voted movies.** Surprise Me finds lesser-known films within well-known ones, not obscurities.
 - **Recommend has no director cap.** Five results is too few for it to matter, and context already varies the list.
@@ -210,9 +215,10 @@ Among the anchors (movies rated above the baseline), Interstellar has the larges
 
 ## 5. Tests and evaluation
 
-- **`npm test`** (vitest): 49 tests in `lib/recommender/__tests__/`. They cover:
-  - mean shrinkage, weight rules and recency
+- **`npm test`** (vitest): 51 tests in `lib/recommender/__tests__/`. They cover:
+  - mean shrinkage, weight rules, recency and the ±1.5 weight clamp
   - the Interstellar/Martian/Transformers case
+  - 8 sci-fi films at 5★ plus a 1★ keep Science Fiction clearly positive
   - cast handling and the popularity percentile
   - normalization and the Bayesian rating
   - cold-start renormalization

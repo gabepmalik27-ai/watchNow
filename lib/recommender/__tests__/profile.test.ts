@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   baseWeight,
   buildProfile,
+  clampWeight,
   recencyDecay,
   shrunkMean,
 } from "@/lib/recommender/profile";
@@ -65,28 +66,54 @@ describe("buildProfile", () => {
   const features = byId([INTERSTELLAR, THE_MARTIAN, TRANSFORMERS]);
   const rows = [rated(INTERSTELLAR.id, 5), rated(THE_MARTIAN.id, 4), rated(TRANSFORMERS.id, 1)];
 
-  it("Interstellar 5 / Martian 4 / Transformers 1: sci-fi genre ≈ 0, space keywords positive", () => {
+  it("Interstellar 5 / Martian 4 / Transformers 1: weights clamp to ±1.5, sci-fi stays mildly positive, space keywords positive", () => {
     const profile = buildProfile(rows, features, flatPercentile, NOW);
     expect(profile.mu).toBeCloseTo(3.4);
-    expect(profile.weights.get(INTERSTELLAR.id)).toBeCloseTo(1.6);
+    // Unclamped: +1.6, +0.6, −2.4. WEIGHT_CLIP limits both extremes to 1.5.
+    expect(profile.weights.get(INTERSTELLAR.id)).toBeCloseTo(1.5);
     expect(profile.weights.get(THE_MARTIAN.id)).toBeCloseTo(0.6);
-    expect(profile.weights.get(TRANSFORMERS.id)).toBeCloseTo(-2.4);
+    expect(profile.weights.get(TRANSFORMERS.id)).toBeCloseTo(-1.5);
 
-    const scifi = profile.affinity.genre.get("Science Fiction") ?? NaN;
-    expect(scifi).toBeCloseTo(-0.04); // (1.6 + 0.6 − 2.4) / (3 + 2)
-    expect(Math.abs(scifi)).toBeLessThan(0.05);
+    // (1.5 + 0.6 − 1.5) / (3 + 2). Without the clamp it would be −0.04.
+    expect(profile.affinity.genre.get("Science Fiction")).toBeCloseTo(0.12);
 
-    expect(profile.affinity.keyword.get("space")).toBeCloseTo(0.55); // 2.2 / (2 + 2)
+    expect(profile.affinity.keyword.get("space")).toBeCloseTo(0.525); // 2.1 / (2 + 2)
     expect(profile.affinity.keyword.get("astronaut")).toBeGreaterThan(0);
-    expect(profile.affinity.keyword.get("robot")).toBeCloseTo(-0.8); // −2.4 / (1 + 2)
+    expect(profile.affinity.keyword.get("robot")).toBeCloseTo(-0.5); // −1.5 / (1 + 2)
+  });
+
+  it("8 sci-fi films at 5★ plus Transformers at 1★ keep a clearly positive Science Fiction affinity", () => {
+    const loved = Array.from({ length: 8 }, (_, i) =>
+      movie(100 + i, { genres: ["Science Fiction", i % 2 ? "Drama" : "Adventure"] }),
+    );
+    const profile = buildProfile(
+      [...loved.map((m) => rated(m.id, 5)), rated(TRANSFORMERS.id, 1)],
+      byId([...loved, TRANSFORMERS]),
+      flatPercentile,
+      NOW,
+    );
+    // mu = (40 + 1 + 7) / 11 = 4.3636; each 5★ → +0.6364; Transformers 1 − 4.3636 = −3.36 → −1.5.
+    expect(profile.weights.get(TRANSFORMERS.id)).toBe(-1.5);
+    const scifi = profile.affinity.genre.get("Science Fiction") ?? NaN;
+    expect(scifi).toBeCloseTo((8 * (5 - 48 / 11) - 1.5) / (9 + 2)); // 0.3264
+    expect(scifi).toBeGreaterThan(0.3);
+    // The clamp is what keeps it there: unclamped it would be about half.
+    const unclamped = (8 * (5 - 48 / 11) + (1 - 48 / 11)) / 11;
+    expect(scifi).toBeGreaterThan(2 * unclamped);
+  });
+
+  it("clamps every weight to ±WEIGHT_CLIP", () => {
+    expect(clampWeight(4)).toBe(1.5);
+    expect(clampWeight(-4)).toBe(-1.5);
+    expect(clampWeight(0.3)).toBe(0.3);
   });
 
   it("gives cast half weight and counts only the top 3 billed", () => {
     const profile = buildProfile(rows, features, flatPercentile, NOW);
     // Jessica Chastain: 4th in Interstellar (ignored), 2nd in The Martian.
     expect(profile.affinity.cast.get("Jessica Chastain")).toBeCloseTo((0.5 * 0.6) / (1 + 2));
-    expect(profile.affinity.cast.get("Matthew McConaughey")).toBeCloseTo((0.5 * 1.6) / (1 + 2));
-    expect(profile.affinity.director.get("Christopher Nolan")).toBeCloseTo(1.6 / 3);
+    expect(profile.affinity.cast.get("Matthew McConaughey")).toBeCloseTo((0.5 * 1.5) / (1 + 2));
+    expect(profile.affinity.director.get("Christopher Nolan")).toBeCloseTo(1.5 / 3);
   });
 
   it("lists positive rated movies as anchors, best first", () => {

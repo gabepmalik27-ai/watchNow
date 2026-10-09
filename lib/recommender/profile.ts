@@ -7,6 +7,7 @@ import {
   MU_PRIOR_COUNT,
   RECENCY_HALF_LIFE_DAYS,
   TOP_CAST_COUNT,
+  WEIGHT_CLIP,
   WEIGHT_NOT_INTERESTED,
   WEIGHT_WATCHED_UNRATED,
   WEIGHT_WATCHLIST,
@@ -23,7 +24,7 @@ export type TasteProfile = {
   mu: number;
   ratedCount: number;
   affinity: AffinityMaps;
-  /** Decayed weight w per movie the user touched (0-weight rows omitted). */
+  /** Decayed, clamped weight w per movie the user touched (0-weight rows omitted). */
   weights: ReadonlyMap<number, number>;
   /** Rated movies with w > 0, best first: candidates for "Because you loved …". */
   anchors: readonly { movieId: number; w: number }[];
@@ -50,6 +51,11 @@ export function baseWeight(row: RecUserRow, mu: number): number {
 export function recencyDecay(updatedAt: string, now: Date): number {
   const ageDays = Math.max(0, (now.getTime() - Date.parse(updatedAt)) / MS_PER_DAY);
   return Math.pow(0.5, ageDays / RECENCY_HALF_LIFE_DAYS);
+}
+
+/** Limits one movie's influence to [−WEIGHT_CLIP, +WEIGHT_CLIP]. */
+export function clampWeight(w: number): number {
+  return Math.min(WEIGHT_CLIP, Math.max(-WEIGHT_CLIP, w));
 }
 
 /** The distinct trait values a movie contributes, per type, sorted. */
@@ -105,7 +111,8 @@ export function buildProfile(
   const positivePercentiles: number[] = [];
 
   for (const row of sorted) {
-    const w = baseWeight(row, mu) * recencyDecay(row.updated_at, now);
+    // Clamped after decay, before affinities: see WEIGHT_CLIP.
+    const w = clampWeight(baseWeight(row, mu) * recencyDecay(row.updated_at, now));
     if (w === 0) continue;
     weights.set(row.movie_id, w);
     if (row.rating !== null && w > 0) anchors.push({ movieId: row.movie_id, w });

@@ -166,11 +166,8 @@ describe("scoreCandidates", () => {
   it("ranks the space movie above the robot movie, and contributions sum to the score", () => {
     const result = scoreCandidates(options);
     const order = result.map((r) => r.movie.id);
+    expect(order[0]).toBe(10);
     expect(order.indexOf(10)).toBeLessThan(order.indexOf(11));
-    expect(order.at(-1)).toBe(11);
-    // Min-max stretches the tiny genre gap (Sci-Fi −0.04 vs Comedy 0) to the
-    // full 0–1 range in this 3-movie set, so features are relative to the set.
-    expect(result.find((r) => r.movie.id === 12)?.breakdown.features.genre).toBe(1);
     for (const { breakdown } of result) {
       const contributionSum = FEATURES.reduce((s, f) => s + breakdown.contributions[f], 0);
       expect(contributionSum).toBeCloseTo(breakdown.score);
