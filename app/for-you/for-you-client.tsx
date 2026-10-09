@@ -3,18 +3,21 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { MovieRow } from "@/components/movie/MovieRow";
+import { RecommendationCard } from "@/components/movie/RecommendationCard";
 import { PosterBlock } from "@/components/movie/PosterBlock";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Panel } from "@/components/ui/Panel";
+import { PersonalizePrompt } from "@/components/ui/PersonalizePrompt";
 import { StarRating } from "@/components/ui/StarRating";
 import { StatCard } from "@/components/ui/StatCard";
 import { Tabs, type TabItem } from "@/components/ui/Tabs";
 import { useAuth } from "@/lib/auth";
 import { formatAudienceRating } from "@/lib/format";
+import type { RecommendedMovie } from "@/lib/recommender";
 import { useMoviesByIds } from "@/lib/use-movies-by-ids";
 import { useUserState } from "@/lib/user-state";
-import type { CatalogMovie, UserMovie } from "@/types/movie";
+import type { UserMovie } from "@/types/movie";
 
 const TABS: TabItem[] = [
   { id: "overview", label: "Overview" },
@@ -46,15 +49,16 @@ function describeActivity(userMovie: UserMovie, title: string): string | null {
 }
 
 type ForYouClientProps = {
-  /** "Recommended for You" row; from getCandidatePool on the server until scoring exists. */
-  recommended: CatalogMovie[];
+  /** Scored on the server by lib/recommendations.ts, best first. */
+  recommendations: RecommendedMovie[];
 };
 
-export function ForYouClient({ recommended }: ForYouClientProps) {
+export function ForYouClient({ recommendations }: ForYouClientProps) {
   const router = useRouter();
   const { displayName } = useAuth();
   const {
     userMovies,
+    getUserMovie,
     setRating,
     toggleWatchlist,
     watchedCount,
@@ -64,6 +68,15 @@ export function ForYouClient({ recommended }: ForYouClientProps) {
     loaded,
   } = useUserState();
   const [activeTab, setActiveTab] = useState("overview");
+
+  // Drop anything touched since the server scored the list, so a rating made
+  // here takes the movie out of the row right away.
+  const recommendedRow = recommendations.filter(({ movie }) => {
+    const um = getUserMovie(movie.id);
+    return !um || (um.rating === null && !um.watched && !um.on_watchlist && !um.not_interested);
+  });
+  const recommended = recommendations.map((r) => r.movie);
+  const reasons = new Map(recommendations.map((r) => [r.movie.id, r.reason]));
 
   // "–" until the saved rows arrive, so a returning user never sees 0s flash.
   const displayWatched = loaded ? watchedCount : "–";
@@ -147,10 +160,21 @@ export function ForYouClient({ recommended }: ForYouClientProps) {
                 </p>
               </Panel>
             </div>
-            <MovieRow
-              title="Recommended for You"
-              movies={recommended}
-            />
+            {loaded ? <PersonalizePrompt ratedCount={ratedCount} /> : null}
+            {recommendedRow.length === 0 ? (
+              <EmptyState
+                title="You've seen everything we'd suggest"
+                description="Rate or dismiss a few more movies and we'll find new picks."
+              />
+            ) : (
+              <MovieRow
+                title="Recommended for You"
+                movies={recommendedRow.map((r) => r.movie)}
+                renderItem={(movie) => (
+                  <RecommendationCard movie={movie} reason={reasons.get(movie.id) ?? ""} />
+                )}
+              />
+            )}
           </div>
         ) : null}
 
