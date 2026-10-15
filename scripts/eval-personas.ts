@@ -2,17 +2,24 @@
 //   npm run eval -- --json=<path>       also writes each persona's top-10 ids as JSON
 //   npm run eval -- --detail=<movie id>  also dumps every intermediate number for
 //   that movie in the first persona's list (default: its top result).
-// Offline evaluation of the recommender: three in-memory personas rated on
-// real catalog ids, each ranked against the live top-2000 pool. Prints each
-// persona's For You top 10 with the score breakdown and the pairwise overlap.
-// Exits 1 if an id is missing or any two personas share more than 2 titles.
+// Offline evaluation of the recommender: in-memory personas rated (or just
+// watched) on real catalog ids, each ranked against the live top-2000 pool.
+// Prints each persona's For You top 10 with the score breakdown, the genre
+// mix of its top 20 before vs after calibration next to the target, and the
+// pairwise top-10 overlap. Exits 1 if an id is missing or any two gated
+// personas share more than 2 titles.
 // Uses the public anon key only (catalog reads); never prints env values.
 
 import { writeFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { fetchFeatureMovies, fetchPool } from "@/lib/recommendation-pool";
-import { rankForYou, type Recommendation } from "@/lib/recommender";
-import { FEATURES, FOR_YOU_WEIGHTS, MAX_PER_DIRECTOR } from "@/lib/recommender/constants";
+import { rankForYou, type GenreShares, type Recommendation } from "@/lib/recommender";
+import {
+  FEATURES,
+  FOR_YOU_WEIGHTS,
+  GENRE_NEGATIVE_LEARNING,
+  MAX_PER_DIRECTOR,
+} from "@/lib/recommender/constants";
 import {
   crowdScore5,
   makePercentile,
@@ -25,14 +32,23 @@ import type { Database } from "@/types/database";
 import type { RecMovie, RecUserRow } from "@/types/movie";
 
 const TOP_N = 10;
+/** The calibrated list length For You uses; the genre-mix report covers this many. */
+const MIX_N = 20;
 const MAX_OVERLAP = 2;
 /** Fixed so every run is identical; every rating is "made" at this instant. */
 const NOW = new Date("2026-10-01T00:00:00.000Z");
 
 type Persona = {
   name: string;
-  /** [TMDB id, expected title, rating] */
-  ratings: [number, string, number][];
+  /** [TMDB id, expected title, rating]; null = watched but unrated. */
+  ratings: [number, string, number | null][];
+  /**
+   * false leaves the persona out of the ≤ 2 overlap gate: the comedy-heavy
+   * personas are meant to resemble the comedy persona.
+   */
+  gated?: boolean;
+  /** Prints how its recommended comedies relate to its liked vs disliked ones. */
+  pickyReport?: boolean;
 };
 
 const PERSONAS: Persona[] = [
@@ -100,6 +116,87 @@ const PERSONAS: Persona[] = [
       [10428, "Hackers", 5],
     ],
   },
+  {
+    // 30 comedies and 10 crime films watched (some rated, most not): the
+    // calibration acceptance case. Target ≈ 0.75 comedy / 0.25 crime before smoothing.
+    name: "Comedy 30 / Crime 10",
+    gated: false,
+    ratings: [
+      [18785, "The Hangover", 4],
+      [8363, "Superbad", 4.5],
+      [137, "Groundhog Day", 4.5],
+      [747, "Shaun of the Dead", 4.5],
+      [22538, "Scott Pilgrim vs. the World", 4],
+      [10625, "Mean Girls", 4],
+      [7446, "Tropic Thunder", 4],
+      [8467, "Dumb and Dumber", 3.5],
+      [1584, "The School of Rock", 4],
+      [762, "Monty Python and the Holy Grail", 4.5],
+      [6957, "The 40 Year-Old Virgin", null],
+      [195589, "Neighbors", null],
+      [37735, "Easy A", null],
+      [109414, "This Is the End", null],
+      [114150, "Pitch Perfect", null],
+      [1597, "Meet the Parents", null],
+      [39513, "Paul", null],
+      [1624, "Liar Liar", null],
+      [4247, "Scary Movie", null],
+      [2105, "American Pie", null],
+      [57214, "Project X", null],
+      [76493, "The Dictator", null],
+      [302699, "Central Intelligence", null],
+      [10201, "Yes Man", null],
+      [310, "Bruce Almighty", null],
+      [72105, "Ted", null],
+      [19908, "Zombieland", null],
+      [771, "Home Alone", null],
+      [2108, "The Breakfast Club", null],
+      [773, "Little Miss Sunshine", null],
+      [238, "The Godfather", 4.5],
+      [769, "GoodFellas", 4.5],
+      [1422, "The Departed", 4],
+      [500, "Reservoir Dogs", 4],
+      [103, "Taxi Driver", null],
+      [6977, "No Country for Old Men", null],
+      [640, "Catch Me If You Can", null],
+      [240, "The Godfather Part II", null],
+      [101, "Léon: The Professional", null],
+      [64690, "Drive", null],
+    ],
+  },
+  {
+    // Watches lots of comedies; loves the offbeat ones, pans broad studio
+    // ones. Comedy should keep its share; the panned style should not return.
+    name: "Picky comedy fan",
+    gated: false,
+    pickyReport: true,
+    ratings: [
+      [120467, "The Grand Budapest Hotel", 5],
+      [83666, "Moonrise Kingdom", 5],
+      [747, "Shaun of the Dead", 4.5],
+      [22538, "Scott Pilgrim vs. the World", 4.5],
+      [773, "Little Miss Sunshine", 4.5],
+      [254320, "The Lobster", 4],
+      [153, "Lost in Translation", 4],
+      [7326, "Juno", 4],
+      [391713, "Lady Bird", 4.5],
+      [515001, "Jojo Rabbit", 4.5],
+      [935, "Dr. Strangelove or: How I Learned to Stop Worrying and Love the Bomb", 5],
+      [762, "Monty Python and the Holy Grail", 4.5],
+      [38365, "Grown Ups", 1],
+      [9339, "Click", 1.5],
+      [1824, "50 First Dates", 2],
+      [257344, "Pixels", 1],
+      [214756, "Ted 2", 1.5],
+      [72105, "Ted", 2],
+      [4247, "Scary Movie", 1],
+      [2105, "American Pie", 1.5],
+      [57214, "Project X", 1],
+      [109439, "The Hangover Part III", 1],
+      [45243, "The Hangover Part II", 1.5],
+      [302699, "Central Intelligence", 2],
+    ],
+  },
 ];
 
 /** Reasons produced when the anchor was rated well above its crowd score. */
@@ -108,11 +205,61 @@ const CROWD_GAP_REASON = /^You rated .+ higher than most viewers$/;
 const f3 = (n: number) => n.toFixed(3);
 const f4 = (n: number) => n.toFixed(4);
 
+const pct = (share: number | undefined) => `${Math.round((share ?? 0) * 100)}%`.padStart(4);
+
+/** Target vs before/after calibration, for genres that matter in any of the three. */
+function printMix(target: GenreShares, before: GenreShares, after: GenreShares) {
+  const genres = Object.keys({ ...target, ...before, ...after })
+    .filter((g) => (target[g] ?? 0) >= 0.03 || (before[g] ?? 0) > 0 || (after[g] ?? 0) > 0)
+    .sort((a, b) => (target[b] ?? 0) - (target[a] ?? 0) || (after[b] ?? 0) - (after[a] ?? 0));
+  console.log(`  genre mix of top ${MIX_N}:      target  before  after`);
+  for (const g of genres) {
+    console.log(`    ${g.padEnd(18)} ${pct(target[g])}    ${pct(before[g])}   ${pct(after[g])}`);
+  }
+}
+
+/** For the picky fan: do recommended comedies look like the liked or the panned ones? */
+function printPickyReport(persona: Persona, results: Recommendation[], features: Map<number, RecMovie>) {
+  const traitsOf = (ids: number[]) => ids.flatMap((id) => {
+    const m = features.get(id);
+    return m ? [movieTraits(m)] : [];
+  });
+  const liked = traitsOf(persona.ratings.filter(([, , r]) => r !== null && r >= 4).map(([id]) => id));
+  const panned = traitsOf(persona.ratings.filter(([, , r]) => r !== null && r <= 2).map(([id]) => id));
+  const set = (list: ReturnType<typeof traitsOf>, key: "keyword" | "director" | "cast") =>
+    new Set(list.flatMap((t) => t[key]));
+  const sets = {
+    liked: { keyword: set(liked, "keyword"), director: set(liked, "director"), cast: set(liked, "cast") },
+    panned: { keyword: set(panned, "keyword"), director: set(panned, "director"), cast: set(panned, "cast") },
+  };
+  const comedies = results.flatMap((r) => {
+    const m = features.get(r.movieId);
+    return m && m.genres.includes("Comedy") ? [{ title: r.title, traits: movieTraits(m) }] : [];
+  });
+  console.log(`  comedies in top ${MIX_N}: ${comedies.length}`);
+  const tally = (side: "liked" | "panned") => {
+    const s2 = sets[side];
+    const kw = comedies.reduce((n, c) => n + c.traits.keyword.filter((k) => s2.keyword.has(k)).length, 0);
+    const dir = comedies.filter((c) => c.traits.director.some((d) => s2.director.has(d))).length;
+    const cast = comedies.filter((c) => c.traits.cast.some((a) => s2.cast.has(a))).length;
+    return `keywords shared ${kw} · same director ${dir} · shared top-3 cast ${cast}`;
+  };
+  console.log(`    vs liked comedies:  ${tally("liked")}`);
+  console.log(`    vs panned comedies: ${tally("panned")}`);
+  for (const c of comedies) {
+    const bad = [
+      ...c.traits.director.filter((d) => sets.panned.director.has(d)),
+      ...c.traits.cast.filter((a) => sets.panned.cast.has(a)),
+    ];
+    if (bad.length > 0) console.log(`    ! ${c.title} shares ${bad.join(", ")} with a panned comedy`);
+  }
+}
+
 function rowsFor(persona: Persona): RecUserRow[] {
   return persona.ratings.map(([id, , rating]) => ({
     movie_id: id,
     rating,
-    watched: true,
+    watched: true, // rated or not, every persona movie was watched
     on_watchlist: false,
     not_interested: false,
     updated_at: NOW.toISOString(),
@@ -166,6 +313,7 @@ function printDetail(
       " w = clamp((rating − mu) − 0.5 × offset, ±1.5)",
   );
   for (const [id, title, rating] of persona.ratings) {
+    if (rating === null) continue;
     const m = features.get(id);
     const avg5 = m ? crowdScore5(m, C) : null;
     const reputation = reputationOf(id);
@@ -176,13 +324,19 @@ function printDetail(
     );
   }
   // Which rated movies carry a trait: A[t] = Σ share·w over them / (count + 2).
+  // Genre affinity skips negative weights (GENRE_NEGATIVE_LEARNING off), so
+  // those carriers are marked as excluded.
   const carriers = (type: "keyword" | "genre" | "director" | "cast", value: string) =>
     persona.ratings
       .filter(([id]) => {
         const m = features.get(id);
         return m ? movieTraits(m)[type].includes(value) : false;
       })
-      .map(([, title]) => title);
+      .map(([id, title]) =>
+        type === "genre" && !GENRE_NEGATIVE_LEARNING && (profile.weights.get(id) ?? 0) < 0
+          ? `(${title}: excluded, w < 0)`
+          : title,
+      );
   const show = (type: "keyword" | "genre" | "cast", values: string[]) =>
     values
       .map((v) => {
@@ -262,16 +416,14 @@ async function main() {
     process.exit(1);
   }
 
-  const tops: { name: string; ids: number[]; titles: string[] }[] = [];
+  const tops: { name: string; gated: boolean; ids: number[]; titles: string[] }[] = [];
   for (const persona of PERSONAS) {
     const rows = rowsFor(persona);
-    const { results, coldStart } = rankForYou({
-      pool,
-      rows,
-      userFeatures,
-      now: NOW,
-      limit: TOP_N,
-    });
+    // Greedy calibration doesn't depend on the list length, so the top 10 of
+    // a 20-item run is exactly the 10-item list.
+    const full = rankForYou({ pool, rows, userFeatures, now: NOW, limit: MIX_N });
+    const { coldStart, calibration } = full;
+    const results = full.results.slice(0, TOP_N);
     console.log(`\n## ${persona.name}${coldStart ? " (cold start)" : ""}`);
     results.forEach((r, i) => printResult(i + 1, r, features));
     const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);
@@ -280,7 +432,21 @@ async function main() {
         ` · mean quality ${f3(mean(results.map((r) => r.breakdown.features.quality)))}` +
         ` · "higher than most viewers" reasons: ${results.filter((r) => CROWD_GAP_REASON.test(r.reason)).length}`,
     );
-    tops.push({ name: persona.name, ids: results.map((r) => r.movieId), titles: results.map((r) => r.title) });
+    if (calibration) {
+      console.log(
+        `  calibration λ ${calibration.lambda}: L1(target, top ${MIX_N}) ${f3(calibration.l1Before)} before → ${f3(calibration.l1After)} after`,
+      );
+      printMix(calibration.target, calibration.before, calibration.after);
+    } else {
+      console.log("  calibration skipped (cold start or no watched genres)");
+    }
+    if (persona.pickyReport) printPickyReport(persona, full.results, features);
+    tops.push({
+      name: persona.name,
+      gated: persona.gated !== false,
+      ids: results.map((r) => r.movieId),
+      titles: results.map((r) => r.title),
+    });
     if (detailArg && persona === PERSONAS[0]) {
       const target = detailId === null ? results[0] : results.find((r) => r.movieId === detailId);
       if (target) printDetail(persona, rows, pool, features, target);
@@ -288,15 +454,16 @@ async function main() {
     }
   }
 
-  console.log("\nOverlap between top-10 lists:");
-  for (let i = 0; i < tops.length; i++) {
-    for (let j = i + 1; j < tops.length; j++) {
-      const shared = tops[i].ids.filter((id) => tops[j].ids.includes(id));
+  console.log("\nOverlap between top-10 lists (gated personas):");
+  const gated = tops.filter((t) => t.gated);
+  for (let i = 0; i < gated.length; i++) {
+    for (let j = i + 1; j < gated.length; j++) {
+      const shared = gated[i].ids.filter((id) => gated[j].ids.includes(id));
       const titles = shared.map((id) => features.get(id)?.title).join(", ");
       const ok = shared.length <= MAX_OVERLAP;
       if (!ok) failed = true;
       console.log(
-        `  ${tops[i].name} × ${tops[j].name}: ${shared.length}${titles ? ` (${titles})` : ""} ${ok ? "ok" : `FAIL (> ${MAX_OVERLAP})`}`,
+        `  ${gated[i].name} × ${gated[j].name}: ${shared.length}${titles ? ` (${titles})` : ""} ${ok ? "ok" : `FAIL (> ${MAX_OVERLAP})`}`,
       );
     }
   }
