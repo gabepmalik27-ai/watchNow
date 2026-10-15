@@ -1,9 +1,10 @@
-import { getCandidatePool } from "@/lib/catalog";
 import { RecommendClient } from "./recommend-client";
 
-export const revalidate = 86400;
+type RecommendPageProps = {
+  searchParams: Promise<{ debug?: string | string[] }>;
+};
 
-export default async function RecommendPage() {
-  const pool = await getCandidatePool(500);
-  return <RecommendClient pool={pool} />;
+export default async function RecommendPage({ searchParams }: RecommendPageProps) {
+  const { debug } = await searchParams;
+  return <RecommendClient debug={debug === "1"} />;
 }

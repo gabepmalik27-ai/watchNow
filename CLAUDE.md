@@ -7,22 +7,22 @@ WatchNow is a movie discovery and recommendation web app built for CSC 371 at Wa
 Design spec: `docs/design-spec.pdf`
 Reference screenshot: `docs/rate-page-screenshot.png`
 
-## Current phase: ACCOUNTS (Supabase Auth + per-user persistence)
+## Current phase: RECOMMENDER (content-based scoring)
 
-The shell is complete and the catalog is live in Supabase (populated from TMDB). We are now adding user accounts so ratings, watched state and the watchlist persist per user.
+The shell, the Supabase catalog and user accounts are done. We are now building the recommendation engine that powers For You, Home's "Recommended for you" row and Recommend.
 
 **In scope:**
-- Supabase Auth with email + password (no magic links, no OAuth), via `@supabase/ssr` cookie sessions and a `middleware.ts` that refreshes them
-- Gating `/rate`, `/recommend` and `/for-you` behind a session (Home and Search stay public)
-- Supabase migrations for `profiles` and `user_movies`, protected by row-level security
-- Per-user persistence of ratings, watched, watchlist and not-interested state (optimistic UI with rollback)
-- The real display name and counts on For You; deleting `lib/placeholder-data.ts`
-- Everything from the data phase: catalog reads from Supabase, server-only TMDB ingestion, posters via `lib/tmdb-image.ts`
+- Content-based, deterministic recommendation scoring (taste profile, candidate features, context, explanations). The same inputs always give the same output.
+- All scoring math as pure functions in `lib/recommender/` (no React, no fetching, no `Date.now()`; "now" is passed in), with every weight and threshold named in `lib/recommender/constants.ts`
+- Scoring runs on the server: user rows via the cookie-bound client (RLS), the candidate pool via the catalog client
+- Route handlers and server-rendered pages the recommender needs
+- Unit tests with `vitest` (the one allowed new devDependency) and an offline persona evaluation script
+- Everything from earlier phases: catalog, accounts and per-user persistence, posters via `lib/tmdb-image.ts`
 - Preserving all shell behavior, design tokens, and accessibility rules
 
 **Explicitly out of scope — do not build these:**
-- Any recommendation scoring logic
-- Any LLM or Anthropic API integration
+- Any LLM or Anthropic API integration (recommendations are computed, not generated)
+- Collaborative filtering or anything that reads another user's data
 - `localStorage`, `sessionStorage`, app-set cookies, or any other browser persistence (sole exception: the Supabase auth session cookies managed by `@supabase/ssr`)
 - Deployment, CI, Vercel config (sole exception: `image.tmdb.org` in `remotePatterns` in `next.config.ts`)
 
@@ -83,7 +83,7 @@ If a task seems to require something out of scope, stop and flag it instead of b
 
 ## Definition of "shell" (phase complete)
 
-Every page is a finished-looking container with placeholder contents. Navigation works. Components render in every visual state. Nothing computes anything. A visitor should be able to click through all five pages and see what the app will look like, while no real logic exists underneath. This holds as the baseline during the data and accounts phases: real data and signed-out or brand-new-user states must not break any shell state.
+Every page is a finished-looking container with placeholder contents. Navigation works. Components render in every visual state. Nothing computes anything. A visitor should be able to click through all five pages and see what the app will look like, while no real logic exists underneath. This holds as the baseline during the data, accounts and recommender phases: real data and signed-out or brand-new-user states must not break any shell state.
 
 ## Working style
 

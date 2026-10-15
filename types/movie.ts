@@ -55,3 +55,30 @@ export type Profile = {
   display_name: string;
   created_at: string; // ISO timestamp
 };
+
+/**
+ * The columns the recommender reads for pool and user movies
+ * (lib/recommendation-pool.ts). A full Movie is assignable to it.
+ */
+export type RecMovie = Pick<
+  Movie,
+  | "id"
+  | "title"
+  | "genres"
+  | "keywords"
+  | "director"
+  | "top_cast"
+  | "vote_average"
+  | "vote_count"
+  | "popularity"
+  | "runtime_min"
+  | "poster_path"
+  | "backdrop_path"
+  | "release_year"
+>;
+
+/** The user_movies columns the recommender reads. */
+export type RecUserRow = Pick<
+  UserMovieRow,
+  "movie_id" | "watched" | "rating" | "on_watchlist" | "not_interested" | "updated_at"
+>;

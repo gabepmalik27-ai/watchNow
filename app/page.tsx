@@ -2,6 +2,7 @@ import Link from "next/link";
 import { MovieRow } from "@/components/movie/MovieRow";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { getHomeRows } from "@/lib/catalog";
+import { HomeRecommendedRow } from "./home-recommended-row";
 
 // Rebuild the page at most once a day; the catalog is reseeded rarely.
 export const revalidate = 86400;
@@ -35,6 +36,7 @@ export default async function HomePage() {
       </PageContainer>
 
       <PageContainer className="flex flex-col gap-10">
+        <HomeRecommendedRow />
         {rows.map((row) => (
           <MovieRow key={row.title} title={row.title} movies={row.movies} />
         ))}
