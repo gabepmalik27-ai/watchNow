@@ -18,6 +18,7 @@ import type { RecommendedMovie } from "@/lib/recommender";
 import { useMoviesByIds } from "@/lib/use-movies-by-ids";
 import { useUserState } from "@/lib/user-state";
 import type { UserMovie } from "@/types/movie";
+import { ForYouCharts } from "./for-you-charts";
 
 const TABS: TabItem[] = [
   { id: "overview", label: "Overview" },
@@ -137,29 +138,7 @@ export function ForYouClient({ recommendations }: ForYouClientProps) {
 
         {activeTab === "overview" ? (
           <div className="flex flex-col gap-8">
-            <div className="grid grid-cols-1 gap-4 tablet:grid-cols-3">
-              <Panel>
-                <p className="font-semibold text-text">Your Top Genres</p>
-                <p className="mt-2 text-sm text-muted">
-                  Chart coming later — this panel will rank genres by your
-                  average rating.
-                </p>
-              </Panel>
-              <Panel>
-                <p className="font-semibold text-text">Genres You Watch Most</p>
-                <p className="mt-2 text-sm text-muted">
-                  Chart coming later — this panel will rank genres by volume
-                  watched.
-                </p>
-              </Panel>
-              <Panel>
-                <p className="font-semibold text-text">Rating Distribution</p>
-                <p className="mt-2 text-sm text-muted">
-                  Chart coming later — this panel will show how your ratings
-                  spread from 0.5 to 5.0.
-                </p>
-              </Panel>
-            </div>
+            <ForYouCharts userMovies={userMovies} loaded={loaded} known={recommended} />
             {loaded ? <PersonalizePrompt ratedCount={ratedCount} /> : null}
             {recommendedRow.length === 0 ? (
               <EmptyState
