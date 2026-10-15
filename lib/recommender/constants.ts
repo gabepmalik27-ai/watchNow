@@ -25,6 +25,17 @@ export const WEIGHT_NOT_INTERESTED = -1.0;
 export const WEIGHT_CLIP = 1.5;
 
 /**
+ * Whether negative movie weights lower GENRE affinity. Off: a genre's
+ * affinity is learned from volume (how much of it the user watches and
+ * enjoys), while low ratings teach *which kind* of that genre to avoid
+ * through keyword, director and cast affinities. Someone who watches lots
+ * of comedies and pans half of them still wants comedies, just not those.
+ * A negative-weight movie is left out of genre affinity entirely (sum and
+ * count), so it can't dilute the genre either.
+ */
+export const GENRE_NEGATIVE_LEARNING: boolean = false;
+
+/**
  * Ratings far from a movie's reputation carry more taste information; 0.5
  * keeps loved classics meaningful. A rated movie's base weight is
  * (rating − mu) − SURPRISE_BETA × offset, where offset is the movie's
@@ -90,14 +101,44 @@ export const PERSONALIZE_PROMPT_RATINGS = 5;
 /** For You / Home: at most this many results per director. */
 export const MAX_PER_DIRECTOR = 2;
 
+// ─── Calibration (calibrate.ts) ──────────────────────────────────────────────
+
+/**
+ * For You / Home: how much the final list's genre mix is pulled toward the
+ * user's watch history (0 = pure score order, 1 = mix only). 0.5 lets a
+ * genre the user watches a lot keep its share even when another genre
+ * scores slightly higher.
+ */
+export const CALIBRATION_LAMBDA_FOR_YOU = 0.5;
+/**
+ * Recommend: lower than For You because tonight's mood and genre picks
+ * should dominate; calibration only keeps the list from collapsing into one genre.
+ */
+export const CALIBRATION_LAMBDA_RECOMMEND = 0.25;
+/**
+ * Share of the target mix spread uniformly over every genre in the pool:
+ * p = 0.9·p_history + 0.1·uniform. Keeps unwatched genres from being
+ * pushed to exactly zero and softens tiny histories.
+ */
+export const CALIBRATION_SMOOTHING = 0.1;
+/**
+ * Calibration re-ranks only the top N by score, so it can reorder strong
+ * candidates but never promote a weak match into the list.
+ */
+export const CALIBRATION_CANDIDATES = 100;
+
 // ─── Pool and result sizes ──────────────────────────────────────────────────
 
 /** Candidates: the N most-voted movies. */
 export const POOL_SIZE = 2000;
 /** PostgREST returns at most 1000 rows per request. */
 export const POOL_PAGE_SIZE = 1000;
+/** For You and Home's personalized row. */
 export const FOR_YOU_LIMIT = 20;
-export const RECOMMEND_LIMIT = 5;
+/** Recommend shows this many results, and "Show more" adds this many more… */
+export const RECOMMEND_RESULT_COUNT = 10;
+/** …up to this many. */
+export const RECOMMEND_MAX_RESULTS = 30;
 
 // ─── Context (context.ts) ───────────────────────────────────────────────────
 

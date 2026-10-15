@@ -3,6 +3,7 @@ import {
   baseWeight,
   buildProfile,
   clampWeight,
+  genreTarget,
   ratedBaseWeight,
   recencyDecay,
   shrunkMean,
@@ -69,7 +70,7 @@ describe("buildProfile", () => {
   const features = byId([INTERSTELLAR, THE_MARTIAN, TRANSFORMERS]);
   const rows = [rated(INTERSTELLAR.id, 5), rated(THE_MARTIAN.id, 4), rated(TRANSFORMERS.id, 1)];
 
-  it("Interstellar 5 / Martian 4 / Transformers 1: weights clamp to ±1.5, sci-fi stays mildly positive, space keywords positive", () => {
+  it("Interstellar 5 / Martian 4 / Transformers 1: weights clamp to ±1.5, sci-fi from the positive weights only, robot negative", () => {
     const profile = buildProfile(rows, features, flatPercentile, NOW, FIXTURE_POOL_MEAN);
     expect(profile.mu).toBeCloseTo(3.4);
     // Unclamped: +1.6, +0.6, −2.4. WEIGHT_CLIP limits both extremes to 1.5.
@@ -77,15 +78,20 @@ describe("buildProfile", () => {
     expect(profile.weights.get(THE_MARTIAN.id)).toBeCloseTo(0.6);
     expect(profile.weights.get(TRANSFORMERS.id)).toBeCloseTo(-1.5);
 
-    // (1.5 + 0.6 − 1.5) / (3 + 2). Without the clamp it would be −0.04.
-    expect(profile.affinity.genre.get("Science Fiction")).toBeCloseTo(0.12);
+    // GENRE_NEGATIVE_LEARNING is off: Transformers adds nothing to genre
+    // affinity, so Science Fiction is (1.5 + 0.6) / (2 + 2).
+    expect(profile.affinity.genre.get("Science Fiction")).toBeCloseTo(0.525);
+    // Action appears only on Transformers, so it has no affinity at all.
+    expect(profile.affinity.genre.has("Action")).toBe(false);
 
     expect(profile.affinity.keyword.get("space")).toBeCloseTo(0.525); // 2.1 / (2 + 2)
     expect(profile.affinity.keyword.get("astronaut")).toBeGreaterThan(0);
+    // Keywords still learn from the dislike.
     expect(profile.affinity.keyword.get("robot")).toBeCloseTo(-0.5); // −1.5 / (1 + 2)
+    expect(profile.affinity.director.get("Michael Bay")).toBeCloseTo(-0.5);
   });
 
-  it("8 sci-fi films at 5★ plus Transformers at 1★ keep a clearly positive Science Fiction affinity", () => {
+  it("8 sci-fi films at 5★ plus Transformers at 1★: the 1★ doesn't touch Science Fiction affinity", () => {
     const loved = Array.from({ length: 8 }, (_, i) =>
       movie(100 + i, { genres: ["Science Fiction", i % 2 ? "Drama" : "Adventure"] }),
     );
@@ -99,11 +105,9 @@ describe("buildProfile", () => {
     // mu = (40 + 1 + 7) / 11 = 4.3636; each 5★ → +0.6364; Transformers 1 − 4.3636 = −3.36 → −1.5.
     expect(profile.weights.get(TRANSFORMERS.id)).toBe(-1.5);
     const scifi = profile.affinity.genre.get("Science Fiction") ?? NaN;
-    expect(scifi).toBeCloseTo((8 * (5 - 48 / 11) - 1.5) / (9 + 2)); // 0.3264
-    expect(scifi).toBeGreaterThan(0.3);
-    // The clamp is what keeps it there: unclamped it would be about half.
-    const unclamped = (8 * (5 - 48 / 11) + (1 - 48 / 11)) / 11;
-    expect(scifi).toBeGreaterThan(2 * unclamped);
+    // Only the eight loves count toward the genre: 8 · 0.6364 / (8 + 2).
+    expect(scifi).toBeCloseTo((8 * (5 - 48 / 11)) / (8 + 2)); // 0.5091
+    expect(scifi).toBeGreaterThan(0.5);
   });
 
   it("clamps every weight to ±WEIGHT_CLIP", () => {
@@ -240,5 +244,41 @@ describe("surprise-adjusted weights (T24)", () => {
     expect(profile.weights.get(404)).toBeCloseTo(0.75);
     expect(profile.anchors.find((a) => a.movieId === 404)?.crowdScore5).toBeNull();
     expect(profile.anchors.find((a) => a.movieId === 1)?.crowdScore5).toBeCloseTo(4.35);
+  });
+});
+
+describe("genre learning from volume, style learning from ratings (T28)", () => {
+  // Four comedies loved, four dramas watched, then three comedies panned at 1★.
+  const loved = Array.from({ length: 4 }, (_, i) =>
+    movie(200 + i, { genres: ["Comedy"], keywords: ["slapstick"], director: "Loved Director" }),
+  );
+  const dramas = Array.from({ length: 4 }, (_, i) => movie(300 + i, { genres: ["Drama"] }));
+  const panned = Array.from({ length: 3 }, (_, i) =>
+    movie(400 + i, { genres: ["Comedy"], keywords: ["gross-out"], director: "Panned Director" }),
+  );
+  const features = byId([...loved, ...dramas, ...panned]);
+  const baseRows = [...loved.map((m) => rated(m.id, 5)), ...dramas.map((m) => row(m.id, { watched: true }))];
+  const withPans = [...baseRows, ...panned.map((m) => rated(m.id, 1))];
+  const profileOf = (rows: typeof baseRows) =>
+    buildProfile(rows, features, flatPercentile, NOW, FIXTURE_POOL_MEAN);
+
+  it("(a) three 1★ comedies don't lower Comedy genre affinity", () => {
+    const before = profileOf(baseRows).affinity.genre.get("Comedy") ?? 0;
+    const after = profileOf(withPans).affinity.genre.get("Comedy") ?? 0;
+    expect(after).toBeGreaterThanOrEqual(before);
+  });
+
+  it("(b) they do lower their own keywords and director", () => {
+    const profile = profileOf(withPans);
+    expect(profile.affinity.keyword.get("gross-out")).toBeLessThan(0);
+    expect(profile.affinity.director.get("Panned Director")).toBeLessThan(0);
+    expect(profile.affinity.keyword.get("slapstick")).toBeGreaterThan(0);
+  });
+
+  it("(c) they don't lower comedy's calibration share", () => {
+    const poolGenres = ["Comedy", "Drama"];
+    const before = genreTarget(baseRows, features, NOW, poolGenres).get("Comedy") ?? 0;
+    const after = genreTarget(withPans, features, NOW, poolGenres).get("Comedy") ?? 0;
+    expect(after).toBeGreaterThanOrEqual(before);
   });
 });

@@ -10,7 +10,7 @@ No LLM is involved, and no other user's data is read. The same inputs always pro
   - For You (server-rendered)
   - Home's "Recommended for you" row (`GET /api/recommend`)
   - Recommend (`POST /api/recommend`)
-- **Check it:** `npm test` runs the unit tests. `npm run eval` runs four personas against the live catalog. `npm run eval -- --detail=<id>` prints every intermediate number for one result.
+- **Check it:** `npm test` runs the unit tests. `npm run eval` runs six personas against the live catalog. `npm run eval -- --detail=<id>` prints every intermediate number for one result.
 
 ---
 
@@ -38,6 +38,7 @@ No LLM is involved, and no other user's data is read. The same inputs always pro
    - The `+ 2` keeps a trait seen once from looking as certain as one seen ten times.
    - Cast members get half the movie's weight, and only the first 3 billed count.
    - Traits you've never touched score 0.
+   - **Genres skip negative weights** (`GENRE_NEGATIVE_LEARNING = false`): a movie with `w < 0` adds nothing to a genre's sum *or* its count. Keywords, director and cast still learn from it fully. See [Volume decides how much, ratings decide which kind](#volume-decides-how-much-ratings-decide-which-kind).
 7. **Measure how mainstream you are.** `pUser` is the average popularity percentile (0 = least popular, 1 = most popular in the pool) of the movies you weighted positively. It's 0.5 if there are none.
 
 ### Step 2: Score each candidate
@@ -101,7 +102,72 @@ The first rule that applies wins:
    - Otherwise show "Because you loved {title}: {its two best shared keywords}", padded with shared genres if needed.
 4. **Fallback:** "Matches your taste for {your best-liked genre on this movie}", or the cold-start text if there is none.
 
+### Step 5: Calibrate the genre mix
+
+Scoring ranks movies one at a time, so a list can drift into whatever genre scores highest (a sci-fi fan's list sliding into acclaimed dramas). Calibration re-ranks the best candidates so the list's genre mix resembles what the user actually watches. It's described in full in [Calibration in detail](#calibration-in-detail).
+
+### Explanations and debugging
+
 Every result also carries its full score breakdown. Open Recommend with `?debug=1` to see it under each result.
+
+Every list also carries `diagnostics`: how many results were requested and returned, the pool size, and where the rest went (already rated/watched/watchlisted/dismissed, outside the time filter, skipped by the director cap, missing from the catalog). `?debug=1` on Recommend and on For You shows it, so a short list explains itself.
+
+### Calibration in detail
+
+**The target `p(genre)`** is the genre mix of the user's history:
+
+- Every **watched** movie counts, rated or not, **including the ones they disliked**. Users must be able to rate honestly without shrinking a genre's share of their recommendations: panning three comedies says "not those comedies", not "fewer comedies".
+- A movie with `k` genres gives `1/k` to each, times the same recency decay as the profile (`0.5^(days / 180)`). The credits are normalized to sum to 1.
+- **Smoothing:** `p = 0.9 · p + 0.1 · (1 / number of genres in the pool)` for every pool genre, so no genre is ruled out entirely and small histories are softened.
+
+**The re-rank** (`lib/recommender/calibrate.ts`) is greedy:
+
+1. Take the top **100** candidates by score (`CALIBRATION_CANDIDATES`). Calibration can reorder strong candidates; it never promotes a weak one.
+2. Normalize each score by the best one: `ns = score / max score`. Min-max would stretch any gap to 0–1, so near-identical candidates would look far apart and calibration would barely move (0.60 instead of 0.70 comedy in the 75%-comedy test).
+3. Fill the list one slot at a time with the candidate that maximizes
+   `(1 − λ) · ns − λ · L1(p, q_after_adding)`,
+   where `q` is the list's own genre mix (same `1/k` credit) and `L1 = Σ |p(g) − q(g)|` over every genre in either (0 = identical, 2 = disjoint).
+4. Ties keep score order (score, then quality, then id), so **λ = 0 is exactly the score order**. The For You director cap (≤ 2) is applied inside the loop: a capped director's movies are simply not eligible.
+
+Each slot's choice doesn't depend on how long the list will be, so asking for 20 gives the 10-item list plus 10 more. "Show more" relies on that.
+
+| | λ | Why |
+|---|---|---|
+| For You / Home | 0.5 | Taste and genre balance count equally. |
+| Recommend | 0.25 | Tonight's mood and genre picks should dominate; calibration only keeps the list from collapsing into one genre. |
+
+Calibration is skipped during cold start (< 3 ratings) and when no watched movie has genres. `?debug=1` on For You and Recommend shows `p`, `q` before and after, and both L1 distances.
+
+**Worked example.** A user has watched three comedies and one crime film. The pool has Comedy, Crime and Drama.
+
+- Raw mix: Comedy 0.75, Crime 0.25. Smoothed: Comedy `0.9·0.75 + 0.1/3` = **0.7083**, Crime `0.9·0.25 + 0.0333` = **0.2583**, Drama **0.0333**.
+- Candidates: A (Crime, 0.80), B (Crime, 0.78), C (Comedy, 0.76), D (Comedy + Drama, 0.74). λ = 0.5, list of 2. `ns` = 1, 0.975, 0.95, 0.925.
+- **Slot 1:**
+  - A: q = {Crime 1}, L1 = 0.7083 + 0.7417 + 0.0333 = 1.4833 → 0.5·1 − 0.5·1.4833 = **−0.2417**
+  - B: same L1 → 0.4875 − 0.7417 = **−0.2542**
+  - C: q = {Comedy 1}, L1 = 0.2917 + 0.2583 + 0.0333 = 0.5833 → 0.475 − 0.2917 = **+0.1833** ← picked
+  - D: q = {Comedy ½, Drama ½}, L1 = 0.2083 + 0.2583 + 0.4667 = 0.9333 → 0.4625 − 0.4667 = **−0.0042**
+- **Slot 2** (list so far: C):
+  - A: q = {Comedy ½, Crime ½}, L1 = 0.2083 + 0.2417 + 0.0333 = 0.4833 → 0.5 − 0.2417 = **+0.2583** ← picked
+  - B: same L1 → 0.4875 − 0.2417 = **+0.2458**
+  - D: q = {Comedy ¾, Drama ¼}, L1 = 0.0417 + 0.2583 + 0.2167 = 0.5167 → 0.4625 − 0.2583 = **+0.2042**
+- Result **C, A** instead of the score order A, B. L1 drops from 1.4833 (all crime) to 0.4833. The best crime film still makes it; the second one gives way to the comedy the user watches three times as often.
+
+### Volume decides how much, ratings decide which kind
+
+Genre affinity and the calibration target both learn from **how much** of a genre the user watches. Low ratings teach **which kind** to avoid through keywords, directors and cast, and never shrink the genre itself.
+
+- **Why:** someone who watches lots of comedies and pans half of them still wants comedies, just not those. Before this rule, every 1★ comedy lowered Comedy's genre affinity, so honest ratings pushed comedies out entirely.
+- **How:** `GENRE_NEGATIVE_LEARNING = false` leaves negative-weight movies out of genre affinity (sum and count, so they can't dilute it either), and the calibration target counts every watched movie regardless of rating.
+
+**Example: the eval's "Picky comedy fan"** watches 24 comedies. They love 12 offbeat ones (Wes Anderson, Edgar Wright, Monty Python, Lady Bird, Jojo Rabbit) at 4–5★ and pan 12 broad studio ones (Grown Ups, Click, Pixels, Ted 2, The Hangover II and III) at 1–2★.
+
+| | Comedy share of top 20 (genre credit) | Comedies in top 20 |
+|---|---|---|
+| Genre learns from dislikes too (old) | 15% | 5 |
+| Volume decides how much (now) | **48%** (target 49%) | **17** |
+
+The recommended comedies look like the loved ones, not the panned ones. Against the 12 loved comedies they share 70 keywords, 5 directors and 3 top-3 cast members; against the 12 panned ones, 22 keywords, 0 directors and 2 cast members (Anna Faris in The Dictator, Mark Wahlberg in Daddy's Home).
 
 ---
 
@@ -118,6 +184,7 @@ Every result also carries its full score breakdown. Open Recommend with `?debug=
 | `CROWD_GAP_REASON_STARS` | 1 | "Higher than most viewers" should mean a real disagreement: a full star above the crowd. It also requires a below-average reputation. Without that, any 5★ on a film averaging 8.0/10 or less qualified, which was most 5★ ratings (7 of the comedy persona's 10 reasons) and replaced the more specific "Because you loved". |
 | `WEIGHT_CLIP` | 1.5 | Weights are clamped to ±1.5 after decay. A full star above the baseline (+1) passes untouched, and so do the fixed signals (±1, +0.5, +0.3). Only outliers are cut: a 1★ from someone whose baseline is 4+ would otherwise be −3 or worse and cancel three or more loved movies sharing a genre. With the clamp, the eval's sci-fi persona keeps a positive Science Fiction affinity (0.22 instead of 0.09). |
 | `RECENCY_HALF_LIFE_DAYS` | 180 | Taste drifts slowly. Six months keeps last year's favourites relevant while letting this month's ratings lead. |
+| `GENRE_NEGATIVE_LEARNING` | false | Genre affinity learns from volume; dislikes teach keywords, directors and cast instead. See [Volume decides how much, ratings decide which kind](#volume-decides-how-much-ratings-decide-which-kind). |
 | `AFFINITY_PSEUDO_COUNT` | 2 | The same idea as the mean prior: a trait seen in one movie gets 1/3 of that movie's weight, not all of it, so single coincidences don't dominate. |
 | `CAST_WEIGHT` | 0.5 | Actors appear in very different films, so sharing an actor says less about a movie than sharing a director or keyword. |
 | `TOP_CAST_COUNT` | 3 | Leads shape a film; the 5th-billed actor rarely does. |
@@ -130,7 +197,12 @@ Every result also carries its full score breakdown. Open Recommend with `?debug=
 | `PERSONALIZE_PROMPT_RATINGS` | 5 | Personalization switches on at 3, but it's still thin. Prompting until 5 gets the user to a more stable profile. |
 | `MAX_PER_DIRECTOR` | 2 | Stops one loved director from filling a whole row (e.g. six Nolan films). |
 | `POOL_SIZE` / `POOL_PAGE_SIZE` | 2000 / 1000 | 2000 well-known movies is large enough for variety and small enough to cache (≈ 1.24 MB, under Next's 2 MB data-cache limit). PostgREST returns at most 1000 rows per request. |
-| `FOR_YOU_LIMIT` / `RECOMMEND_LIMIT` | 20 / 5 | A scrollable row, and "five for tonight" as the Recommend page has always promised. |
+| `FOR_YOU_LIMIT` | 20 | A scrollable row for For You and Home. |
+| `RECOMMEND_RESULT_COUNT` / `RECOMMEND_MAX_RESULTS` | 10 / 30 | Recommend shows 10; "Show more" asks for 10 more, up to 30. Scoring is deterministic, so a larger count extends the same list rather than reshuffling it. |
+| `CALIBRATION_LAMBDA_FOR_YOU` | 0.5 | Taste and genre balance count equally on For You and Home. |
+| `CALIBRATION_LAMBDA_RECOMMEND` | 0.25 | Lower, because tonight's mood and genre picks should dominate. |
+| `CALIBRATION_SMOOTHING` | 0.1 | 10% of the target is spread evenly over the pool's genres, so no genre is ruled out and small histories are softened. |
+| `CALIBRATION_CANDIDATES` | 100 | Calibration reorders the 100 best-scored candidates (5× a For You list), so it can rebalance without promoting weak matches. |
 | `CONTEXT_HITS_FOR_FULL_MATCH` | 2 | Movies carry ~2–4 genres. Requiring 2 hits for a full match means one matching genre counts as "partly fits" and two as "fits". |
 | `CONTEXT_PENALTY_PER_GENRE` | 0.5 | One clashing genre (Relaxing + Horror) cancels half a match; two cancel everything. |
 | `DISCOVERY_MIN/MAX/DEFAULT` | 0 / 100 / 50 | The slider's range; the default is balanced. |
@@ -140,7 +212,7 @@ Every result also carries its full score breakdown. Open Recommend with `?debug=
 
 ## 3. Worked example: Gravity for the sci-fi persona
 
-Reproduce with `npm run eval -- --detail=49047`. The numbers depend on the catalog as seeded (2026-10-08); a reseed changes popularity and vote counts. Values are shown to 4 decimals, so the last digit can differ by rounding.
+Reproduce with `npm run eval -- --detail=49047`. The numbers depend on the catalog as seeded (2026-10-08); a reseed changes popularity and vote counts. Recomputed 2026-10-15 for the genre rule. Values are shown to 4 decimals, so the last digit can differ by rounding.
 
 **The persona** ("Cerebral sci-fi fan", all ratings made "now", so no decay):
 Interstellar 5, Arrival 5, Blade Runner 2049 4.5, Inception 4.5, 2001: A Space Odyssey 5, Ex Machina 4.5, Contact 4, Annihilation 4, The Martian 4, Transformers 1.
@@ -181,11 +253,11 @@ Interstellar 5, Arrival 5, Blade Runner 2049 4.5, Inception 4.5, 2001: A Space O
   | reflective | none | **0** |
   | trapped in space | none | **0** |
 
-- **Gravity's genres:**
-  - Drama is carried by Interstellar, Arrival, BR2049, Ex Machina, Contact and The Martian:
-    `(0.7399 + 0.9632 + 0.4650 + 0.4656 + 0.0010 − 0.0613) / (6 + 2) = 2.5734 / 8 = 0.3217`.
-  - Science Fiction is carried by all 10, Transformers included:
-    `(sum of all ten weights) / 12 = 2.4310 / 12 = 0.2026`.
+- **Gravity's genres.** Genres skip negative weights, so The Martian (−0.0613) and Transformers (−1.5) are left out:
+  - Drama is carried by Interstellar, Arrival, BR2049, Ex Machina and Contact:
+    `(0.7399 + 0.9632 + 0.4650 + 0.4656 + 0.0010) / (5 + 2) = 2.6347 / 7 = 0.3764`.
+  - Science Fiction is carried by the eight positively weighted movies:
+    `3.9923 / (8 + 2) = 0.3992`. Before this rule Transformers' −1.5 counted, and it was 0.2026.
   - Thriller: no rated movie, **0**.
 - **People:** Alfonso Cuarón, Sandra Bullock, George Clooney and Ed Harris appear in none of the rated movies, so all are 0.
 - **`pUser = 0.8087`.** The persona's positively weighted movies are mostly very popular ones. Annihilation and Contact now count as positive too, which lowers it from 0.89.
@@ -195,7 +267,7 @@ Interstellar 5, Arrival 5, Blade Runner 2049 4.5, Inception 4.5, 2001: A Space O
 | Feature | Raw | Pool min / max | Feature value |
 |---|---|---|---|
 | keyword | (0.3105 + 0.3211 + 0.3211 + 0 + 0.1696 + 0.2913 + 0.4034 + 0) / √8 = 1.8170 / 2.8284 = **0.6424** | −0.5944 / 0.6424 | Gravity *is* the max, so **1.0000** |
-| genre | (0.3217 + 0.2026 + 0) / 3 = **0.1748** | −0.1544 / 0.3446 | (0.1748 + 0.1544) / (0.3446 + 0.1544) = 0.3292 / 0.4990 = **0.6596** |
+| genre | (0.3764 + 0.3992 + 0) / 3 = **0.2585** | 0 / 0.3992 | 0.2585 / 0.3992 = **0.6476** (no genre affinity is negative any more, so the pool minimum is 0) |
 | people | 0 + 0 = **0** | −0.6667 / 0.3829 | 0.6667 / 1.0496 = **0.6352** |
 | quality | R = 7.2, v = 16 736, C = 7.0042: WR = (16736 / 17736)·7.2 + (1000 / 17736)·7.0042 = 6.7940 + 0.3949 = **7.1890** | maps 5 → 0, 9 → 1 | (7.1890 − 5) / 4 = **0.5472** |
 | rarity | Gravity's popularity percentile = 0.6093; target = pUser = 0.8087 | — | 1 − 0.1994 = **0.8007** |
@@ -207,17 +279,17 @@ Not cold start (10 ratings) and no context, so the For You weights apply unchang
 | Feature | Weight × value | Contribution |
 |---|---|---|
 | keyword | 0.35 × 1.0000 | 0.3500 |
-| genre | 0.25 × 0.6596 | 0.1649 |
+| genre | 0.25 × 0.6476 | 0.1619 |
 | people | 0.15 × 0.6352 | 0.0953 |
 | quality | 0.15 × 0.5472 | 0.0821 |
 | rarity | 0.10 × 0.8007 | 0.0801 |
-| **Score** | | **0.7723** (0.7724 from the rounded contributions) |
+| **Score** | | **0.7693** (0.7694 from the rounded contributions) |
 
-Gravity is the persona's #1 result.
+After calibration, Gravity is #8 of the persona's top 10.
 
 ### Reason
 
-Among the anchors (movies with w > 0 that were rated), Interstellar has the largest overlap with Gravity: space station 0.4034 + astronaut 0.3105 + space 0.1696 + Drama 0.3217 + Science Fiction 0.2026 = 1.4078. Next is 2001 at 1.2078 (no Drama), then Arrival at 1.1665.
+Among the anchors (movies with w > 0 that were rated), Interstellar has the largest overlap with Gravity: space station 0.4034 + astronaut 0.3105 + space 0.1696 + Drama 0.3764 + Science Fiction 0.3992 = 1.6591. Next is Arrival at 1.4178 (hopeful, loss, Drama, Science Fiction), then 2001 at 1.4044 (no Drama).
 
 Interstellar's reputation is +0.73, well above average, so the crowd-gap wording doesn't apply. Its two best shared keywords are space station (0.4034) and astronaut (0.3105).
 → **"Because you loved Interstellar: space station, astronaut"**
@@ -226,7 +298,8 @@ Interstellar's reputation is +0.73, well above average, so the crowd-gap wording
 
 ## 4. Behaviours worth knowing
 
-- **Outliers are capped, not ignored.** Before `WEIGHT_CLIP`, the sci-fi persona's single Transformers 1★ (w −3.04) cut Science Fiction to 0.09. Its top 10 drifted to acclaimed dramas: **3/10 sci-fi**. With the clamp, the 1★ still counts (−1.5, the strongest negative allowed) but can't outvote the loved films. Science Fiction is 0.22 and the top 10 is **7/10 sci-fi**, led by Gravity. The remaining three (Dead Poets Society, 12 Angry Men, One Flew Over the Cuckoo's Nest) come from Drama, which six of the loved films share.
+- **Outliers are capped, not ignored.** Before `WEIGHT_CLIP`, the sci-fi persona's single Transformers 1★ (w −3.04) cut Science Fiction to 0.09. Its top 10 drifted to acclaimed dramas: **3/10 sci-fi**. With the clamp, the 1★ still counted (−1.5, the strongest negative allowed) but couldn't outvote the loved films: **7/10 sci-fi**, the other three from Drama.
+- **Now the 1★ teaches keywords, not genre, and calibration keeps the mix.** With genre learning from positives only, Science Fiction is 0.40 (robot and Michael Bay stay negative). Calibration then pulls the top 20 from 43% Drama to 25%, against a 22% target. The top 10 is **10/10 sci-fi**: A.I., The Prestige, Project Hail Mary, Planet of the Apes, Moon, Dune, The Thing, Gravity, The Force Awakens, Blade Runner.
 - **Surprise weights reward distinctive opinions, measured against the user's own taste.** The first version measured reputation against the catalog only. That shrank every love of a fan of acclaimed films: Interstellar fell from +0.96 to +0.59, the 1★ outlier dominated again, and the sci-fi persona dropped from 7/10 to 4/10 sci-fi. Measuring against the user's own average keeps that persona at 7/10, while the contrarian's cult loves still count fully. In the eval, each persona's top 10 shares 9 of 10 titles with the pre-surprise version:
   - Sci-fi: 12 Angry Men → The Passion of the Christ, a weak Drama-driven pick at #9.
   - Comedy: The Good Dinosaur → Paddington.
@@ -237,12 +310,12 @@ Interstellar's reputation is +0.73, well above average, so the crowd-gap wording
 - **Features are relative to the candidate set.** Min-max rescaling means a feature value says "how this compares with the other candidates", not an absolute strength. When a few movies score very negatively (sequels to a hated movie), an unrelated movie sits around 0.7 rather than 0. That's why Gravity's people feature is 0.62 even though nothing matched.
 - **A generous rater's 4★ is slightly negative,** because it is below their own baseline. Ratings are read relative to the user, not the scale.
 - **"Niche" means niche among the 2000 most-voted movies.** Surprise Me finds lesser-known films within well-known ones, not obscurities.
-- **Recommend has no director cap.** Five results is too few for it to matter, and context already varies the list.
+- **Recommend has no director cap.** Context already varies the list. With "Show more" reaching 30 results, a cap may become worth adding.
 - **For You is computed per request.** A rating made on For You removes that movie from the row immediately (client-side), and the full list re-scores on the next visit.
 
 ## 5. Tests and evaluation
 
-- **`npm test`** (vitest): 61 recommender tests in `lib/recommender/__tests__/`, plus the For You chart stats. They cover:
+- **`npm test`** (vitest): recommender tests in `lib/recommender/__tests__/`, plus the For You chart stats and the user-state rules. They cover:
   - mean shrinkage, weight rules, recency and the ±1.5 weight clamp
   - surprise weights: the spec values (+0.475, +1.15, −1.55 before the clamp, −1.5 after), decay before the clamp, offsets relative to the user's own ratings, and the crowd-gap reason
   - the Interstellar/Martian/Transformers case
@@ -253,8 +326,13 @@ Interstellar's reputation is +0.73, well above average, so the crowd-gap wording
   - the hard runtime filter, context matching and the director cap
   - explanations
   - determinism: shuffled inputs give an identical output
-- **`npm run eval`:** four personas, each with 10–12 ratings on real catalog ids:
-  - sci-fi, comedy/animation and horror/thriller
+  - result diagnostics (excluded, time filter, director cap), and a larger limit extending the same list
+  - calibration: the target from 30 comedies + 10 crime films, a disliked comedy still raising comedy's target, a 20-item list landing at 0.75 ± 0.1 comedy, λ = 0 equal to score order, and determinism on shuffled input
+  - genre learning from volume: three 1★ comedies don't lower Comedy affinity or its calibration share, but do push their keywords and director negative
+- **`npm run eval`:** six personas on real catalog ids:
+  - sci-fi, comedy/animation and horror/thriller (10 ratings each)
   - a contrarian who rates six acclaimed classics 3★ and six cult films 5★
+  - "Comedy 30 / Crime 10": 40 watched movies, 14 of them rated
+  - "Picky comedy fan": 24 comedies, half loved and half panned
 
-  It prints each top 10 with breakdowns, reasons, mean popularity and mean quality, and fails if any two lists share more than 2 titles. As of 2026-10-15 the overlap is 0 for every pair. `--json=<path>` writes the lists for before/after comparisons.
+  It prints each top 10 with breakdowns, reasons, mean popularity and mean quality, and each top 20's genre mix (target, score order, calibrated) with L1. For the picky fan it also reports how the recommended comedies relate to the loved vs panned ones. It fails if any two of the first four lists share more than 2 titles; the two comedy-heavy personas are meant to resemble the comedy persona, so they aren't gated. As of 2026-10-15 the overlap is 0 for every gated pair. `--json=<path>` writes the lists for before/after comparisons.

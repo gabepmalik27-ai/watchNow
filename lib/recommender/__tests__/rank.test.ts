@@ -82,6 +82,49 @@ describe("rankForYou", () => {
   });
 });
 
+describe("diagnostics", () => {
+  it("For You: accounts for excluded movies and the director cap", () => {
+    const rows = [...sciFiRows, row(1000, { watched: true }), row(1001, { on_watchlist: true })];
+    const { diagnostics, results } = rankForYou({ ...base, rows, limit: 200 });
+    expect(diagnostics).toMatchObject({
+      requested: 200,
+      returned: results.length,
+      poolSize: pool.length,
+      excludedByUser: 5,
+      removedByTimeFilter: 0,
+    });
+    // 15 synthetic directors × 2 per director allows at most 30. Calibration
+    // re-ranks the top 100, and every one of those it left out was capped.
+    expect(results).toHaveLength(30);
+    expect(diagnostics.removedByDirectorCap).toBe(100 - results.length);
+  });
+
+  it("Recommend: counts movies removed by the time filter", () => {
+    const { diagnostics, results } = rankForContext({
+      ...base,
+      rows: sciFiRows,
+      limit: 200,
+      context: { mood: null, experience: null, time: "<90", discovery: 50 },
+    });
+    const candidates = pool.length - 3;
+    expect(diagnostics.removedByTimeFilter).toBeGreaterThan(0);
+    expect(diagnostics.returned).toBe(results.length);
+    expect(results.length).toBe(candidates - diagnostics.removedByTimeFilter);
+  });
+
+  it("a larger limit extends the same list", () => {
+    const run = (limit: number) =>
+      rankForContext({
+        ...base,
+        rows: sciFiRows,
+        limit,
+        context: { mood: "Exciting", experience: null, time: null, discovery: 50 },
+      }).results.map((r) => r.movieId);
+    expect(run(20).slice(0, 10)).toEqual(run(10));
+    expect(run(30).slice(0, 20)).toEqual(run(20));
+  });
+});
+
 describe("rankForContext", () => {
   it("never returns a movie longer than 90 minutes for <90 (or with null runtime)", () => {
     const { results } = rankForContext({

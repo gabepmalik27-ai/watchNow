@@ -1,6 +1,8 @@
 import {
   AFFINITY_PSEUDO_COUNT,
+  CALIBRATION_SMOOTHING,
   CAST_WEIGHT,
+  GENRE_NEGATIVE_LEARNING,
   DEFAULT_RARITY_PREFERENCE,
   MS_PER_DAY,
   MU_PRIOR,
@@ -172,6 +174,8 @@ export function buildProfile(
 
     const traits = movieTraits(movie);
     for (const type of Object.keys(traits) as TraitType[]) {
+      // Genre learns from volume, not from dislikes (see GENRE_NEGATIVE_LEARNING).
+      if (type === "genre" && w < 0 && !GENRE_NEGATIVE_LEARNING) continue;
       for (const value of traits[type]) {
         sums[type].set(value, (sums[type].get(value) ?? 0) + TRAIT_SHARE[type] * w);
         counts[type].set(value, (counts[type].get(value) ?? 0) + 1);
@@ -199,4 +203,47 @@ export function buildProfile(
       : positivePercentiles.reduce((total, p) => total + p, 0) / positivePercentiles.length;
 
   return { mu, ratedCount: ratings.length, affinity, weights, anchors, pUser };
+}
+
+/** A genre → share map whose values sum to 1 (empty when there's nothing to describe). */
+export type GenreMix = ReadonlyMap<string, number>;
+
+/**
+ * The calibration target p(genre): what share of each genre the user's
+ * history holds. Every watched movie counts, rated or not, and *including*
+ * ones they disliked, so rating honestly never shrinks a genre's share of
+ * their recommendations. A movie with k genres gives 1/k to each, times the
+ * same recency decay as the profile. The result is smoothed:
+ * p = (1 − CALIBRATION_SMOOTHING)·p + CALIBRATION_SMOOTHING·uniform over poolGenres.
+ * Empty when no watched movie has genres.
+ */
+export function genreTarget(
+  rows: readonly RecUserRow[],
+  featuresById: ReadonlyMap<number, RecMovie>,
+  now: Date,
+  poolGenres: readonly string[],
+): GenreMix {
+  const sorted = [...rows].sort((a, b) => a.movie_id - b.movie_id);
+  const credits = new Map<string, number>();
+  let total = 0;
+  for (const row of sorted) {
+    if (!row.watched && row.rating === null) continue;
+    const movie = featuresById.get(row.movie_id);
+    if (!movie) continue;
+    const genres = movieTraits(movie).genre;
+    if (genres.length === 0) continue;
+    const share = recencyDecay(row.updated_at, now) / genres.length;
+    for (const genre of genres) credits.set(genre, (credits.get(genre) ?? 0) + share);
+    total += share * genres.length;
+  }
+  if (total === 0) return new Map();
+
+  const uniform = [...new Set(poolGenres)].sort();
+  const target = new Map<string, number>();
+  for (const [genre, credit] of credits) target.set(genre, (1 - CALIBRATION_SMOOTHING) * (credit / total));
+  for (const genre of uniform) {
+    target.set(genre, (target.get(genre) ?? 0) + CALIBRATION_SMOOTHING / uniform.length);
+  }
+  // Sorted keys so iteration (and the debug output) is stable.
+  return new Map([...target].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
 }
