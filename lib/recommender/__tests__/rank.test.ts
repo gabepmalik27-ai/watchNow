@@ -93,9 +93,10 @@ describe("diagnostics", () => {
       excludedByUser: 5,
       removedByTimeFilter: 0,
     });
-    // 15 synthetic directors × 2 per director allows at most 30; every other candidate was skipped by the cap.
-    expect(diagnostics.returned).toBeLessThan(200);
-    expect(diagnostics.removedByDirectorCap).toBe(pool.length - 5 - results.length);
+    // 15 synthetic directors × 2 per director allows at most 30. Calibration
+    // re-ranks the top 100, and every one of those it left out was capped.
+    expect(results).toHaveLength(30);
+    expect(diagnostics.removedByDirectorCap).toBe(100 - results.length);
   });
 
   it("Recommend: counts movies removed by the time filter", () => {

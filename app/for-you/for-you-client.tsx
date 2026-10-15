@@ -144,7 +144,7 @@ export function ForYouClient({ recommendations, debug }: ForYouClientProps) {
           <div className="flex flex-col gap-8">
             <ForYouCharts userMovies={userMovies} loaded={loaded} known={recommended} />
             {loaded ? <PersonalizePrompt ratedCount={ratedCount} /> : null}
-            {debug ? <DiagnosticsPanel diagnostics={debug.diagnostics} /> : null}
+            {debug ? <DiagnosticsPanel diagnostics={debug.diagnostics} calibration={debug.calibration} /> : null}
             {recommendedRow.length === 0 ? (
               <EmptyState
                 title="You've seen everything we'd suggest"

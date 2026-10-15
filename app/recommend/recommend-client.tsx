@@ -10,6 +10,7 @@ import { FilterChip } from "@/components/ui/FilterChip";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { formatAudienceRating } from "@/lib/format";
 import type {
+  CalibrationInfo,
   RankDiagnostics,
   RecommendContext,
   RecommendationResponse,
@@ -104,6 +105,7 @@ type Status =
       kind: "results";
       results: RecommendedMovie[];
       diagnostics: RankDiagnostics;
+      calibration: CalibrationInfo | null;
       /** The filters these results are for, so "Show more" extends the same list. */
       context: RecommendContext;
       /** False once the list hit RECOMMEND_MAX_RESULTS or came back short. */
@@ -147,6 +149,7 @@ export function RecommendClient({ debug }: RecommendClientProps) {
         kind: "results",
         results: data.results,
         diagnostics: data.diagnostics,
+        calibration: data.calibration,
         context,
         canShowMore:
           data.results.length === RECOMMEND_RESULT_COUNT &&
@@ -174,6 +177,7 @@ export function RecommendClient({ debug }: RecommendClientProps) {
         ...status,
         results: [...results, ...added],
         diagnostics: data.diagnostics,
+        calibration: data.calibration,
         canShowMore: data.results.length === count && count < RECOMMEND_MAX_RESULTS,
         loadingMore: false,
         moreError: false,
@@ -269,7 +273,7 @@ export function RecommendClient({ debug }: RecommendClientProps) {
             <h2 className="text-lg font-bold text-text">
               Your Recommendations
             </h2>
-            {debug ? <DiagnosticsPanel diagnostics={status.diagnostics} /> : null}
+            {debug ? <DiagnosticsPanel diagnostics={status.diagnostics} calibration={status.calibration} /> : null}
             <div className="grid grid-cols-2 gap-6 tablet:grid-cols-3 desktop:grid-cols-5">
               {status.results.map(({ movie, reason, breakdown }) => (
                 <div key={movie.id} className="flex flex-col gap-2">

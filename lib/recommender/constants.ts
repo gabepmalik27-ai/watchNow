@@ -90,6 +90,32 @@ export const PERSONALIZE_PROMPT_RATINGS = 5;
 /** For You / Home: at most this many results per director. */
 export const MAX_PER_DIRECTOR = 2;
 
+// ─── Calibration (calibrate.ts) ──────────────────────────────────────────────
+
+/**
+ * For You / Home: how much the final list's genre mix is pulled toward the
+ * user's watch history (0 = pure score order, 1 = mix only). 0.5 lets a
+ * genre the user watches a lot keep its share even when another genre
+ * scores slightly higher.
+ */
+export const CALIBRATION_LAMBDA_FOR_YOU = 0.5;
+/**
+ * Recommend: lower than For You because tonight's mood and genre picks
+ * should dominate; calibration only keeps the list from collapsing into one genre.
+ */
+export const CALIBRATION_LAMBDA_RECOMMEND = 0.25;
+/**
+ * Share of the target mix spread uniformly over every genre in the pool:
+ * p = 0.9·p_history + 0.1·uniform. Keeps unwatched genres from being
+ * pushed to exactly zero and softens tiny histories.
+ */
+export const CALIBRATION_SMOOTHING = 0.1;
+/**
+ * Calibration re-ranks only the top N by score, so it can reorder strong
+ * candidates but never promote a weak match into the list.
+ */
+export const CALIBRATION_CANDIDATES = 100;
+
 // ─── Pool and result sizes ──────────────────────────────────────────────────
 
 /** Candidates: the N most-voted movies. */
