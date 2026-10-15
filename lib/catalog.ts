@@ -9,7 +9,7 @@ import type { CatalogMovie } from "@/types/movie";
  */
 
 const CATALOG_COLUMNS =
-  "id, title, overview, release_year, runtime_min, vote_average, poster_path, backdrop_path, genres, director, top_cast";
+  "id, title, overview, release_year, runtime_min, vote_average, vote_count, poster_path, backdrop_path, genres, director, top_cast";
 
 const ROW_SIZE = 20;
 export const MAX_IDS_PER_CALL = 100;

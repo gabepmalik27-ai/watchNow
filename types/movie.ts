@@ -28,6 +28,7 @@ export type CatalogMovie = Pick<
   | "release_year"
   | "runtime_min"
   | "vote_average"
+  | "vote_count"
   | "poster_path"
   | "backdrop_path"
   | "genres"
