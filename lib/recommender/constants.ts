@@ -25,6 +25,17 @@ export const WEIGHT_NOT_INTERESTED = -1.0;
 export const WEIGHT_CLIP = 1.5;
 
 /**
+ * Whether negative movie weights lower GENRE affinity. Off: a genre's
+ * affinity is learned from volume (how much of it the user watches and
+ * enjoys), while low ratings teach *which kind* of that genre to avoid
+ * through keyword, director and cast affinities. Someone who watches lots
+ * of comedies and pans half of them still wants comedies, just not those.
+ * A negative-weight movie is left out of genre affinity entirely (sum and
+ * count), so it can't dilute the genre either.
+ */
+export const GENRE_NEGATIVE_LEARNING: boolean = false;
+
+/**
  * Ratings far from a movie's reputation carry more taste information; 0.5
  * keeps loved classics meaningful. A rated movie's base weight is
  * (rating − mu) − SURPRISE_BETA × offset, where offset is the movie's

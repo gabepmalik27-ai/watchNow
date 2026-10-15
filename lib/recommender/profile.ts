@@ -2,6 +2,7 @@ import {
   AFFINITY_PSEUDO_COUNT,
   CALIBRATION_SMOOTHING,
   CAST_WEIGHT,
+  GENRE_NEGATIVE_LEARNING,
   DEFAULT_RARITY_PREFERENCE,
   MS_PER_DAY,
   MU_PRIOR,
@@ -173,6 +174,8 @@ export function buildProfile(
 
     const traits = movieTraits(movie);
     for (const type of Object.keys(traits) as TraitType[]) {
+      // Genre learns from volume, not from dislikes (see GENRE_NEGATIVE_LEARNING).
+      if (type === "genre" && w < 0 && !GENRE_NEGATIVE_LEARNING) continue;
       for (const value of traits[type]) {
         sums[type].set(value, (sums[type].get(value) ?? 0) + TRAIT_SHARE[type] * w);
         counts[type].set(value, (counts[type].get(value) ?? 0) + 1);
