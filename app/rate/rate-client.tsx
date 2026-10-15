@@ -1,20 +1,52 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { MovieDetailDialog } from "@/components/movie/MovieDetailDialog";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { MovieRow } from "@/components/movie/MovieRow";
 import { PosterButton } from "@/components/movie/PosterButton";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Toast } from "@/components/ui/Toast";
+import { useMovieDetail } from "@/lib/movie-detail";
 import { getRateCandidates } from "@/lib/rate-candidates";
 import { useMovieSearch } from "@/lib/use-movie-search";
-import { getCachedMovie, useMoviesByIds } from "@/lib/use-movies-by-ids";
+import { useMoviesByIds } from "@/lib/use-movies-by-ids";
 import { useUserState } from "@/lib/user-state";
 import type { CatalogMovie } from "@/types/movie";
 
 /** Keeps the "have you seen these?" row to a scrollable length. */
 const CANDIDATE_ROW_SIZE = 40;
+
+/** A TMDB id as it may appear in ?movie= (same rule as /api/movies). */
+const MOVIE_ID_PATTERN = /^[1-9]\d{0,9}$/;
+
+/**
+ * /rate?movie=ID: opens the rating dialog for that movie once it's known
+ * (from the pool, the client cache, or /api/movies). Closing the dialog
+ * drops the param without a reload. Invalid or unknown ids are ignored.
+ */
+function RateDeepLink({ pool }: { pool: CatalogMovie[] }) {
+  const raw = useSearchParams().get("movie");
+  const router = useRouter();
+  const { openMovie } = useMovieDetail();
+  const id = raw && MOVIE_ID_PATTERN.test(raw) ? Number(raw) : null;
+  const inPool = id === null ? undefined : pool.find((movie) => movie.id === id);
+  const { movies } = useMoviesByIds(id !== null && !inPool ? [id] : []);
+  const movie = inPool ?? movies[0];
+  // The id already opened, so re-renders don't reopen it after it's closed.
+  const openedRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (id === null) openedRef.current = null;
+    if (!movie || openedRef.current === movie.id) return;
+    openedRef.current = movie.id;
+    openMovie(movie, undefined, {
+      mode: "rate",
+      onClose: () => router.replace("/rate", { scroll: false }),
+    });
+  }, [id, movie, openMovie, router]);
+
+  return null;
+}
 
 type RateClientProps = {
   /** Most-voted movies from getCandidatePool on the server. */
@@ -22,25 +54,12 @@ type RateClientProps = {
 };
 
 export function RateClient({ pool }: RateClientProps) {
-  const { userMovies, getUserMovie, ratedCount, lastRating, undoLastRating } =
-    useUserState();
-  const [dismissedToken, setDismissedToken] = useState(0);
+  const { userMovies, getUserMovie, ratedCount } = useUserState();
+  const { openMovie } = useMovieDetail();
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<CatalogMovie | null>(null);
-  const openerRef = useRef<HTMLButtonElement | null>(null);
 
-  function openMovie(movie: CatalogMovie, trigger: HTMLButtonElement) {
-    openerRef.current = trigger;
-    setSelected(movie);
-  }
-
-  function closeMovie() {
-    setSelected(null);
-    // Native <dialog> restores focus itself; this is a fallback for when the
-    // opener was re-mounted (e.g. it moved between rows after being rated).
-    const opener = openerRef.current;
-    if (opener && !opener.isConnected) return;
-    opener?.focus();
+  function openForRating(movie: CatalogMovie, trigger: HTMLButtonElement) {
+    openMovie(movie, trigger, { mode: "rate" });
   }
 
   // Rated or watchlisted movies may be outside the pool (e.g. found via
@@ -64,30 +83,16 @@ export function RateClient({ pool }: RateClientProps) {
   const matches = search.results;
   const searching = search.status === "idle" || search.status === "loading";
 
-  const toastVisible = lastRating !== null && lastRating.token !== dismissedToken;
-  const toastMovie = lastRating
-    ? selected?.id === lastRating.movieId
-      ? selected
-      : getCachedMovie(lastRating.movieId)
-    : undefined;
-
-  const toast =
-    toastVisible && lastRating && toastMovie ? (
-      <Toast
-        toastKey={lastRating.token}
-        message={`Rated ${toastMovie.title} ★${lastRating.rating.toFixed(1)}`}
-        actionLabel="Undo"
-        onAction={undoLastRating}
-        onDismiss={() => setDismissedToken(lastRating.token)}
-      />
-    ) : null;
-
   const renderPoster = (movie: CatalogMovie) => (
-    <PosterButton movie={movie} userMovie={getUserMovie(movie.id)} onOpen={openMovie} />
+    <PosterButton movie={movie} userMovie={getUserMovie(movie.id)} onOpen={openForRating} />
   );
 
   return (
     <main className="pb-16 pt-8">
+      {/* useSearchParams needs a Suspense boundary on a statically rendered page. */}
+      <Suspense fallback={null}>
+        <RateDeepLink pool={pool} />
+      </Suspense>
       <PageContainer className="flex flex-col gap-8">
         <div className="flex flex-col gap-2">
           <div className="flex items-baseline gap-3">
@@ -153,12 +158,6 @@ export function RateClient({ pool }: RateClientProps) {
           </div>
         )}
       </PageContainer>
-
-      {/* Inside the dialog while it's open: a modal makes outside content inert, so Undo would be unclickable. */}
-      <MovieDetailDialog movie={selected} onClose={closeMovie}>
-        {selected ? toast : null}
-      </MovieDetailDialog>
-      {selected ? null : toast}
     </main>
   );
 }

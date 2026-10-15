@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { MovieCard } from "@/components/movie/MovieCard";
+import { MovieDetailButton } from "@/components/movie/MovieDetailButton";
 import { PosterBlock } from "@/components/movie/PosterBlock";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -119,12 +120,14 @@ export function SearchClient({ genres }: SearchClientProps) {
               <section className="flex flex-col gap-3">
                 <h2 className="text-lg font-bold text-text">Top result</h2>
                 <Panel className="flex flex-col gap-4 tablet:flex-row">
-                  <div className="w-full tablet:w-40">
+                  <MovieDetailButton movie={topResult} pointerOnly className="tablet:w-40 tablet:shrink-0">
                     <PosterBlock movie={topResult} sizes="(min-width: 768px) 160px, 100vw" />
-                  </div>
+                  </MovieDetailButton>
                   <div className="flex flex-col gap-2">
                     <h3 className="text-xl font-bold text-text">
-                      {topResult.title}
+                      <MovieDetailButton movie={topResult} className="w-auto rounded px-0 hover:bg-transparent hover:underline">
+                        {topResult.title}
+                      </MovieDetailButton>
                     </h3>
                     <p className="text-sm text-muted">
                       {formatMovieMeta(topResult)}
