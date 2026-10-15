@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { MovieDetailButton } from "@/components/movie/MovieDetailButton";
 import { MovieRow } from "@/components/movie/MovieRow";
 import { RecommendationCard } from "@/components/movie/RecommendationCard";
 import { PosterBlock } from "@/components/movie/PosterBlock";
@@ -169,13 +170,15 @@ export function ForYouClient({ recommendations }: ForYouClientProps) {
             <div className="grid grid-cols-2 gap-6 tablet:grid-cols-3 desktop:grid-cols-5">
               {ratedMovies.map(({ movie, userMovie }) => (
                 <div key={movie.id} className="flex flex-col gap-2">
-                  <PosterBlock movie={movie} />
-                  <p className="truncate text-sm font-medium text-text">
-                    {movie.title}
-                  </p>
-                  {movie.release_year !== null ? (
-                    <p className="text-xs text-muted">{movie.release_year}</p>
-                  ) : null}
+                  <MovieDetailButton movie={movie} className="flex flex-col gap-2">
+                    <PosterBlock movie={movie} />
+                    <span className="flex flex-col gap-2 px-1">
+                      <span className="truncate text-sm font-medium text-text">{movie.title}</span>
+                      {movie.release_year !== null ? (
+                        <span className="text-xs text-muted">{movie.release_year}</span>
+                      ) : null}
+                    </span>
+                  </MovieDetailButton>
                   <StarRating
                     value={userMovie.rating}
                     onChange={(value) => setRating(movie.id, value)}
@@ -200,7 +203,17 @@ export function ForYouClient({ recommendations }: ForYouClientProps) {
             <div className="grid grid-cols-2 gap-6 tablet:grid-cols-3 desktop:grid-cols-5">
               {watchlistMovies.map((movie) => (
                 <div key={movie.id} className="group relative flex flex-col gap-2">
-                  <PosterBlock movie={movie} />
+                  <MovieDetailButton movie={movie} className="flex flex-col gap-2">
+                    <PosterBlock movie={movie} />
+                    <span className="flex flex-col gap-2 px-1">
+                      <span className="truncate text-sm font-medium text-text">{movie.title}</span>
+                      <span className="text-xs text-muted">
+                        {movie.release_year !== null ? `${movie.release_year} · ` : null}
+                        <span className="text-rating">★</span>{" "}
+                        {formatAudienceRating(movie.vote_average)}
+                      </span>
+                    </span>
+                  </MovieDetailButton>
                   <button
                     type="button"
                     aria-label={`Remove ${movie.title} from watchlist`}
@@ -209,14 +222,6 @@ export function ForYouClient({ recommendations }: ForYouClientProps) {
                   >
                     ×
                   </button>
-                  <p className="truncate text-sm font-medium text-text">
-                    {movie.title}
-                  </p>
-                  <p className="text-xs text-muted">
-                    {movie.release_year !== null ? `${movie.release_year} · ` : null}
-                    <span className="text-rating">★</span>{" "}
-                    {formatAudienceRating(movie.vote_average)}
-                  </p>
                 </div>
               ))}
             </div>

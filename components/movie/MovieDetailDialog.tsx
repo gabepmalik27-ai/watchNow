@@ -10,8 +10,12 @@ import { tmdbImageLoader } from "@/lib/tmdb-image";
 import { useUserState } from "@/lib/user-state";
 import type { CatalogMovie } from "@/types/movie";
 
+/** "rate": stars and Watched/Watchlist chips (Rate page). "browse": everywhere else. */
+export type DetailMode = "browse" | "rate";
+
 type MovieDetailDialogProps = {
   movie: CatalogMovie | null;
+  mode: DetailMode;
   onClose: () => void;
   /**
    * Rendered inside the <dialog>. A modal dialog makes everything outside it

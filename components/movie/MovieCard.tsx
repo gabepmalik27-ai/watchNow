@@ -1,5 +1,7 @@
+"use client";
+
+import { MovieDetailButton } from "@/components/movie/MovieDetailButton";
 import { PosterBlock } from "@/components/movie/PosterBlock";
-import { cx } from "@/lib/cx";
 import { formatAudienceRating } from "@/lib/format";
 import type { CatalogMovie } from "@/types/movie";
 
@@ -12,17 +14,7 @@ export function MovieCard({ movie, className }: MovieCardProps) {
   const displayRating = formatAudienceRating(movie.vote_average);
 
   return (
-    <button
-      type="button"
-      onClick={() => {
-        // TODO: open detail view
-      }}
-      className={cx(
-        "group w-full rounded-xl text-left transition-colors",
-        "hover:bg-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-electric focus-visible:ring-offset-2 focus-visible:ring-offset-midnight",
-        className,
-      )}
-    >
+    <MovieDetailButton movie={movie} className={className}>
       <PosterBlock movie={movie} />
       <div className="px-1 pt-2">
         <p className="truncate text-sm font-medium text-text">{movie.title}</p>
@@ -47,6 +39,6 @@ export function MovieCard({ movie, className }: MovieCardProps) {
           </span>
         </div>
       </div>
-    </button>
+    </MovieDetailButton>
   );
 }

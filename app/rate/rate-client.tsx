@@ -1,15 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { MovieDetailDialog } from "@/components/movie/MovieDetailDialog";
+import { useState } from "react";
 import { MovieRow } from "@/components/movie/MovieRow";
 import { PosterButton } from "@/components/movie/PosterButton";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Toast } from "@/components/ui/Toast";
+import { useMovieDetail } from "@/lib/movie-detail";
 import { getRateCandidates } from "@/lib/rate-candidates";
 import { useMovieSearch } from "@/lib/use-movie-search";
-import { getCachedMovie, useMoviesByIds } from "@/lib/use-movies-by-ids";
+import { useMoviesByIds } from "@/lib/use-movies-by-ids";
 import { useUserState } from "@/lib/user-state";
 import type { CatalogMovie } from "@/types/movie";
 
@@ -22,25 +21,12 @@ type RateClientProps = {
 };
 
 export function RateClient({ pool }: RateClientProps) {
-  const { userMovies, getUserMovie, ratedCount, lastRating, undoLastRating } =
-    useUserState();
-  const [dismissedToken, setDismissedToken] = useState(0);
+  const { userMovies, getUserMovie, ratedCount } = useUserState();
+  const { openMovie } = useMovieDetail();
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<CatalogMovie | null>(null);
-  const openerRef = useRef<HTMLButtonElement | null>(null);
 
-  function openMovie(movie: CatalogMovie, trigger: HTMLButtonElement) {
-    openerRef.current = trigger;
-    setSelected(movie);
-  }
-
-  function closeMovie() {
-    setSelected(null);
-    // Native <dialog> restores focus itself; this is a fallback for when the
-    // opener was re-mounted (e.g. it moved between rows after being rated).
-    const opener = openerRef.current;
-    if (opener && !opener.isConnected) return;
-    opener?.focus();
+  function openForRating(movie: CatalogMovie, trigger: HTMLButtonElement) {
+    openMovie(movie, trigger, { mode: "rate" });
   }
 
   // Rated or watchlisted movies may be outside the pool (e.g. found via
@@ -64,26 +50,8 @@ export function RateClient({ pool }: RateClientProps) {
   const matches = search.results;
   const searching = search.status === "idle" || search.status === "loading";
 
-  const toastVisible = lastRating !== null && lastRating.token !== dismissedToken;
-  const toastMovie = lastRating
-    ? selected?.id === lastRating.movieId
-      ? selected
-      : getCachedMovie(lastRating.movieId)
-    : undefined;
-
-  const toast =
-    toastVisible && lastRating && toastMovie ? (
-      <Toast
-        toastKey={lastRating.token}
-        message={`Rated ${toastMovie.title} ★${lastRating.rating.toFixed(1)}`}
-        actionLabel="Undo"
-        onAction={undoLastRating}
-        onDismiss={() => setDismissedToken(lastRating.token)}
-      />
-    ) : null;
-
   const renderPoster = (movie: CatalogMovie) => (
-    <PosterButton movie={movie} userMovie={getUserMovie(movie.id)} onOpen={openMovie} />
+    <PosterButton movie={movie} userMovie={getUserMovie(movie.id)} onOpen={openForRating} />
   );
 
   return (
@@ -153,12 +121,6 @@ export function RateClient({ pool }: RateClientProps) {
           </div>
         )}
       </PageContainer>
-
-      {/* Inside the dialog while it's open: a modal makes outside content inert, so Undo would be unclickable. */}
-      <MovieDetailDialog movie={selected} onClose={closeMovie}>
-        {selected ? toast : null}
-      </MovieDetailDialog>
-      {selected ? null : toast}
     </main>
   );
 }

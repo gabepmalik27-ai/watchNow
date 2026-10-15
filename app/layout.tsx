@@ -4,6 +4,7 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
 import { AuthProvider } from "@/lib/auth";
+import { MovieDetailProvider } from "@/lib/movie-detail";
 import { UserStateProvider } from "@/lib/user-state";
 import "./globals.css";
 
@@ -30,12 +31,14 @@ export default function RootLayout({
       >
         <AuthProvider>
           <UserStateProvider>
-            <Header />
-            <div className="pb-16 tablet:pb-0">
-              {children}
-              <Footer />
-            </div>
-            <BottomNav />
+            <MovieDetailProvider>
+              <Header />
+              <div className="pb-16 tablet:pb-0">
+                {children}
+                <Footer />
+              </div>
+              <BottomNav />
+            </MovieDetailProvider>
           </UserStateProvider>
         </AuthProvider>
       </body>

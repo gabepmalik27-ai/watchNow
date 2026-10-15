@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { MovieDetailButton } from "@/components/movie/MovieDetailButton";
 import { PosterBlock } from "@/components/movie/PosterBlock";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -211,14 +212,18 @@ export function RecommendClient({ debug }: RecommendClientProps) {
             <div className="grid grid-cols-2 gap-6 tablet:grid-cols-3 desktop:grid-cols-5">
               {status.results.map(({ movie, reason, breakdown }) => (
                 <div key={movie.id} className="flex flex-col gap-2">
-                  <PosterBlock movie={movie} />
-                  <p className="text-sm font-medium text-text">{movie.title}</p>
-                  <p className="text-xs text-muted">
-                    {movie.release_year !== null ? `${movie.release_year} · ` : null}
-                    {movie.runtime_min !== null ? `${movie.runtime_min} min · ` : null}
-                    <span className="text-rating">★</span>{" "}
-                    {formatAudienceRating(movie.vote_average)}
-                  </p>
+                  <MovieDetailButton movie={movie} className="flex flex-col gap-2">
+                    <PosterBlock movie={movie} />
+                    <span className="flex flex-col gap-2 px-1">
+                      <span className="text-sm font-medium text-text">{movie.title}</span>
+                      <span className="text-xs text-muted">
+                        {movie.release_year !== null ? `${movie.release_year} · ` : null}
+                        {movie.runtime_min !== null ? `${movie.runtime_min} min · ` : null}
+                        <span className="text-rating">★</span>{" "}
+                        {formatAudienceRating(movie.vote_average)}
+                      </span>
+                    </span>
+                  </MovieDetailButton>
                   <p className="text-xs font-medium text-soft-blue">{reason}</p>
                   {movie.overview ? (
                     <p className="line-clamp-4 text-xs text-muted">{movie.overview}</p>
