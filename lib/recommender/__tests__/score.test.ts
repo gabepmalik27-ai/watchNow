@@ -18,6 +18,7 @@ import {
 } from "@/lib/recommender/score";
 import {
   INTERSTELLAR,
+  FIXTURE_POOL_MEAN,
   NOW,
   THE_MARTIAN,
   TRANSFORMERS,
@@ -52,6 +53,7 @@ describe("rawMatches", () => {
     byId([INTERSTELLAR, THE_MARTIAN, TRANSFORMERS]),
     flatPercentile,
     NOW,
+    FIXTURE_POOL_MEAN,
   );
 
   it("sums keyword affinity over sqrt(count), means genres, adds director + mean cast", () => {
@@ -147,6 +149,7 @@ describe("scoreCandidates", () => {
     byId([INTERSTELLAR, THE_MARTIAN, TRANSFORMERS]),
     flatPercentile,
     NOW,
+    FIXTURE_POOL_MEAN,
   );
   const spaceMovie = movie(10, { keywords: ["space", "astronaut"], genres: ["Science Fiction"] });
   const robotMovie = movie(11, { keywords: ["robot", "alien"], genres: ["Science Fiction"] });

@@ -6,18 +6,30 @@ import {
   MU_PRIOR,
   MU_PRIOR_COUNT,
   RECENCY_HALF_LIFE_DAYS,
+  SURPRISE_BETA,
   TOP_CAST_COUNT,
   WEIGHT_CLIP,
   WEIGHT_NOT_INTERESTED,
   WEIGHT_WATCHED_UNRATED,
   WEIGHT_WATCHLIST,
 } from "@/lib/recommender/constants";
+import { crowdScore5, surpriseOffset } from "@/lib/recommender/features";
 import type { RecMovie, RecUserRow } from "@/types/movie";
 
 export type TraitType = "keyword" | "genre" | "director" | "cast";
 
 /** Affinity per trait value, e.g. affinity.keyword.get("space"). Missing = 0. */
 export type AffinityMaps = Readonly<Record<TraitType, ReadonlyMap<string, number>>>;
+
+export type Anchor = {
+  movieId: number;
+  w: number;
+  rating: number;
+  /** The movie's crowd score on the 0–5 scale; null when it isn't in the catalog. */
+  crowdScore5: number | null;
+  /** movie_avg5 − catalog_avg5 (absolute, not user-relative); null when not in the catalog. */
+  reputation: number | null;
+};
 
 export type TasteProfile = {
   /** The user's mean rating, shrunk toward MU_PRIOR. */
@@ -27,7 +39,7 @@ export type TasteProfile = {
   /** Decayed, clamped weight w per movie the user touched (0-weight rows omitted). */
   weights: ReadonlyMap<number, number>;
   /** Rated movies with w > 0, best first: candidates for "Because you loved …". */
-  anchors: readonly { movieId: number; w: number }[];
+  anchors: readonly Anchor[];
   /** Mean popularity percentile of positively weighted movies. */
   pUser: number;
 };
@@ -38,9 +50,22 @@ export function shrunkMean(ratings: readonly number[]): number {
   return (sum + MU_PRIOR * MU_PRIOR_COUNT) / (ratings.length + MU_PRIOR_COUNT);
 }
 
-/** Undecayed weight of one row. The first matching rule wins. */
-export function baseWeight(row: RecUserRow, mu: number): number {
-  if (row.rating !== null) return row.rating - mu;
+/**
+ * A rated movie's undecayed, unclamped weight:
+ * (rating − mu) − SURPRISE_BETA × offset, where offset = movie_avg5 − catalog_avg5.
+ * Loving an acclaimed classic counts a little less; loving a poorly reviewed
+ * film, or disliking an acclaimed one, counts more.
+ */
+export function ratedBaseWeight(rating: number, mu: number, offset: number): number {
+  return rating - mu - SURPRISE_BETA * offset;
+}
+
+/**
+ * Undecayed weight of one row. The first matching rule wins. `offset` only
+ * applies to rated rows (0 when the movie's reputation is unknown).
+ */
+export function baseWeight(row: RecUserRow, mu: number, offset: number = 0): number {
+  if (row.rating !== null) return ratedBaseWeight(row.rating, mu, offset);
   if (row.not_interested) return WEIGHT_NOT_INTERESTED;
   if (row.watched) return WEIGHT_WATCHED_UNRATED;
   if (row.on_watchlist) return WEIGHT_WATCHLIST;
@@ -88,11 +113,24 @@ export function buildProfile(
   featuresById: ReadonlyMap<number, RecMovie>,
   popularityPercentile: (popularity: number | null) => number,
   now: Date,
+  /** C, the pool's mean vote_average: catalog_avg5 = C / 2. */
+  poolMean: number,
 ): TasteProfile {
   // Sort so floating-point sums happen in the same order for the same inputs.
   const sorted = [...rows].sort((a, b) => a.movie_id - b.movie_id);
   const ratings = sorted.flatMap((row) => (row.rating === null ? [] : [row.rating]));
   const mu = shrunkMean(ratings);
+
+  // Each rated movie's reputation, and their mean: the user's own baseline.
+  const reputations = new Map<number, number>();
+  for (const row of sorted) {
+    const movie = featuresById.get(row.movie_id);
+    if (row.rating !== null && movie) reputations.set(row.movie_id, surpriseOffset(movie, poolMean));
+  }
+  const meanReputation =
+    reputations.size === 0
+      ? 0
+      : [...reputations.values()].reduce((total, r) => total + r, 0) / reputations.size;
 
   const sums: Record<TraitType, Map<string, number>> = {
     keyword: new Map(),
@@ -107,17 +145,28 @@ export function buildProfile(
     cast: new Map(),
   };
   const weights = new Map<number, number>();
-  const anchors: { movieId: number; w: number }[] = [];
+  const anchors: Anchor[] = [];
   const positivePercentiles: number[] = [];
 
   for (const row of sorted) {
-    // Clamped after decay, before affinities: see WEIGHT_CLIP.
-    const w = clampWeight(baseWeight(row, mu) * recencyDecay(row.updated_at, now));
+    const movie = featuresById.get(row.movie_id);
+    const reputation = reputations.get(row.movie_id);
+    // Relative to the user's own baseline; 0 for unrated or unknown movies.
+    const offset = reputation === undefined ? 0 : reputation - meanReputation;
+    // Surprise, then decay, then the clamp (see SURPRISE_BETA, WEIGHT_CLIP).
+    const w = clampWeight(baseWeight(row, mu, offset) * recencyDecay(row.updated_at, now));
     if (w === 0) continue;
     weights.set(row.movie_id, w);
-    if (row.rating !== null && w > 0) anchors.push({ movieId: row.movie_id, w });
+    if (row.rating !== null && w > 0) {
+      anchors.push({
+        movieId: row.movie_id,
+        w,
+        rating: row.rating,
+        crowdScore5: movie ? crowdScore5(movie, poolMean) : null,
+        reputation: reputation ?? null,
+      });
+    }
 
-    const movie = featuresById.get(row.movie_id);
     if (!movie) continue;
     if (w > 0) positivePercentiles.push(popularityPercentile(movie.popularity));
 

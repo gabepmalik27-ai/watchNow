@@ -48,7 +48,9 @@ describe("rankForYou", () => {
   it("puts liked-keyword sci-fi first once personalized", () => {
     const { results, coldStart } = rankForYou({ ...base, rows: sciFiRows, limit: 5 });
     expect(coldStart).toBe(false);
-    expect(results[0].reason).toMatch(/^Because you loved/);
+    // Fixture anchors average 7.0 (crowd 3.5) and are rated 4.5–5, so the
+    // crowd-gap wording is as valid an anchor reason as "Because you loved".
+    expect(results[0].reason).toMatch(/^(Because you loved .+|You rated .+ higher than most viewers)$/);
     // Sci-fi candidates are ids where (id − 1000) % 6 === 0.
     expect(results.filter((r) => (r.movieId - 1000) % 6 === 0).length).toBeGreaterThanOrEqual(3);
   });

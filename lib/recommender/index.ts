@@ -63,7 +63,8 @@ function prepare(input: RankInput) {
   for (const movie of input.userFeatures) featuresById.set(movie.id, movie);
   for (const movie of input.pool) featuresById.set(movie.id, movie);
   const popularityPercentile = makePercentile(input.pool.map((m) => m.popularity));
-  const profile = buildProfile(input.rows, featuresById, popularityPercentile, input.now);
+  const poolMean = meanVoteAverage(input.pool);
+  const profile = buildProfile(input.rows, featuresById, popularityPercentile, input.now, poolMean);
   const excluded = excludedIds(input.rows);
   // Sorted by id so the result never depends on the order the pool arrived in.
   const candidates = input.pool
@@ -74,7 +75,7 @@ function prepare(input: RankInput) {
     popularityPercentile,
     profile,
     candidates,
-    poolMean: meanVoteAverage(input.pool),
+    poolMean,
     coldStart: profile.ratedCount < COLD_START_MIN_RATINGS,
   };
 }

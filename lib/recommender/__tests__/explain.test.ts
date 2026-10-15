@@ -6,6 +6,7 @@ import { buildProfile } from "@/lib/recommender/profile";
 import { effectiveWeights, type ScoredCandidate } from "@/lib/recommender/score";
 import {
   INTERSTELLAR,
+  FIXTURE_POOL_MEAN,
   NOW,
   THE_MARTIAN,
   TRANSFORMERS,
@@ -21,6 +22,7 @@ const profile = buildProfile(
   features,
   flatPercentile,
   NOW,
+  FIXTURE_POOL_MEAN,
 );
 
 function scored(
@@ -75,10 +77,78 @@ describe("explain", () => {
 
   it("falls back to a liked genre, then the cold-start text", () => {
     const drama = movie(1, { genres: ["Drama"], keywords: ["family"] });
+    // The fixture Interstellar's 5★ is 1.5 stars above its crowd score
+    // (3.5), but its reputation is exactly average, not below it, so the
+    // crowd-gap wording doesn't apply.
     expect(explain(scored(drama, {}), profile, features, null)).toBe(
       "Because you loved Interstellar: Drama",
     );
     const western = movie(2, { genres: ["Western"] });
     expect(explain(scored(western, {}), profile, features, null)).toBe("Popular and highly rated");
+  });
+});
+
+describe("explain: crowd gap", () => {
+  // Pool mean 7.0 → catalog_avg5 3.5. Huge vote counts make movie_avg5 = R / 2.
+  const cult = movie(500, {
+    title: "Hackers",
+    vote_average: 6.0, // movie_avg5 3.0
+    vote_count: 1e12,
+    keywords: ["hacker", "computer"],
+    genres: ["Crime"],
+  });
+  const classic = movie(501, {
+    title: "Casablanca",
+    vote_average: 8.2, // movie_avg5 4.1
+    vote_count: 1e12,
+    keywords: ["world war ii", "nightclub"],
+    genres: ["Romance"],
+  });
+  const crowdFeatures = byId([cult, classic, movie(502), movie(503)]);
+  // mu = (5 + 5 + 3 + 3 + 7) / 6 = 3.833
+  const crowdProfile = buildProfile(
+    [rated(500, 5), rated(501, 5), rated(502, 3), rated(503, 3)],
+    crowdFeatures,
+    flatPercentile,
+    NOW,
+    FIXTURE_POOL_MEAN,
+  );
+
+  it("says 'higher than most viewers' when the anchor was rated ≥ 1 star above its crowd score", () => {
+    const candidate = movie(600, { keywords: ["hacker"], genres: ["Crime"] });
+    // 5 − 3.0 = 2 stars above the crowd.
+    expect(explain(scored(candidate, { keyword: 0.3 }), crowdProfile, crowdFeatures, null)).toBe(
+      "You rated Hackers higher than most viewers",
+    );
+  });
+
+  it("keeps 'Because you loved' for a well-regarded film even when rated ≥ 1 star above the crowd", () => {
+    const wellRegarded = movie(510, {
+      title: "Toy Story",
+      vote_average: 8.0, // movie_avg5 4.0: above the 3.5 catalog average
+      vote_count: 1e12,
+      keywords: ["toy"],
+      genres: ["Animation"],
+    });
+    const f = byId([wellRegarded, movie(511), movie(512)]);
+    const p = buildProfile(
+      [rated(510, 5), rated(511, 3), rated(512, 3)],
+      f,
+      flatPercentile,
+      NOW,
+      FIXTURE_POOL_MEAN,
+    );
+    // Gap 5 − 4.0 = 1.0, but the reputation is above average.
+    expect(explain(scored(movie(610, { keywords: ["toy"] }), { keyword: 0.3 }), p, f, null)).toBe(
+      "Because you loved Toy Story: toy",
+    );
+  });
+
+  it("keeps 'Because you loved' when the anchor's rating is close to its reputation", () => {
+    const candidate = movie(601, { keywords: ["nightclub"], genres: ["Romance"] });
+    // 5 − 4.1 = 0.9 stars: below the 1-star gap.
+    expect(explain(scored(candidate, { keyword: 0.3 }), crowdProfile, crowdFeatures, null)).toBe(
+      "Because you loved Casablanca: nightclub, Romance",
+    );
   });
 });

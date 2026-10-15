@@ -1,4 +1,5 @@
 // Run with: npm run eval
+//   npm run eval -- --json=<path>       also writes each persona's top-10 ids as JSON
 //   npm run eval -- --detail=<movie id>  also dumps every intermediate number for
 //   that movie in the first persona's list (default: its top result).
 // Offline evaluation of the recommender: three in-memory personas rated on
@@ -7,11 +8,13 @@
 // Exits 1 if an id is missing or any two personas share more than 2 titles.
 // Uses the public anon key only (catalog reads); never prints env values.
 
+import { writeFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { fetchFeatureMovies, fetchPool } from "@/lib/recommendation-pool";
 import { rankForYou, type Recommendation } from "@/lib/recommender";
 import { FEATURES, FOR_YOU_WEIGHTS, MAX_PER_DIRECTOR } from "@/lib/recommender/constants";
 import {
+  crowdScore5,
   makePercentile,
   meanVoteAverage,
   bayesianRating,
@@ -78,7 +81,29 @@ const PERSONAS: Persona[] = [
       [109445, "Frozen", 1],
     ],
   },
+  {
+    // Rates acclaimed classics 3★ and lower-rated cult/style films 5★: the
+    // case where a rating's distance from the movie's reputation matters most.
+    name: "Contrarian",
+    ratings: [
+      [238, "The Godfather", 3],
+      [278, "The Shawshank Redemption", 3],
+      [424, "Schindler's List", 3],
+      [13, "Forrest Gump", 3],
+      [289, "Casablanca", 3],
+      [15, "Citizen Kane", 3],
+      [76757, "Jupiter Ascending", 5],
+      [19994, "Jennifer's Body", 5],
+      [23629, "Sucker Punch", 5],
+      [460885, "Mandy", 5],
+      [7459, "Speed Racer", 5],
+      [10428, "Hackers", 5],
+    ],
+  },
 ];
+
+/** Reasons produced when the anchor was rated well above its crowd score. */
+const CROWD_GAP_REASON = /^You rated .+ higher than most viewers$/;
 
 const f3 = (n: number) => n.toFixed(3);
 const f4 = (n: number) => n.toFixed(4);
@@ -115,19 +140,40 @@ function printDetail(
   target: Recommendation,
 ) {
   const pct = makePercentile(pool.map((m) => m.popularity));
-  const profile = buildProfile(rows, features, pct, NOW);
+  const C = meanVoteAverage(pool);
+  const profile = buildProfile(rows, features, pct, NOW, C);
   const rated = new Set(rows.map((r) => r.movie_id));
   const candidates = pool.filter((m) => !rated.has(m.id));
   const raws = candidates.map((m) => rawMatches(m, profile.affinity));
   const movie = features.get(target.movieId) as RecMovie;
   const traits = movieTraits(movie);
-  const C = meanVoteAverage(pool);
 
   console.log(`\n=== Worked example: ${persona.name} → ${movie.title} (id ${movie.id}) ===`);
   console.log(`mu = ${f4(profile.mu)}   ratedCount = ${profile.ratedCount}   pUser = ${f4(profile.pUser)}`);
-  console.log("weights w per rated movie:");
+  const reputationOf = (id: number) => {
+    const m = features.get(id);
+    return m ? crowdScore5(m, C) - C / 2 : null;
+  };
+  const known = persona.ratings.flatMap(([id]) => {
+    const r = reputationOf(id);
+    return r === null ? [] : [r];
+  });
+  const meanReputation = known.reduce((a, b) => a + b, 0) / Math.max(1, known.length);
+  console.log(`catalog_avg5 = C / 2 = ${f4(C)} / 2 = ${f4(C / 2)}`);
+  console.log(`mean reputation of rated movies = ${f4(meanReputation)}`);
+  console.log(
+    "weights per rated movie: reputation = movie_avg5 − catalog_avg5; offset = reputation − mean;" +
+      " w = clamp((rating − mu) − 0.5 × offset, ±1.5)",
+  );
   for (const [id, title, rating] of persona.ratings) {
-    console.log(`  ${title}: rating ${rating} → w ${f4(profile.weights.get(id) ?? 0)}`);
+    const m = features.get(id);
+    const avg5 = m ? crowdScore5(m, C) : null;
+    const reputation = reputationOf(id);
+    console.log(
+      `  ${title}: rating ${rating}, R ${m?.vote_average} v ${m?.vote_count} → movie_avg5 ${avg5 === null ? "?" : f4(avg5)}` +
+        ` reputation ${reputation === null ? "?" : f4(reputation)}` +
+        ` offset ${reputation === null ? "0" : f4(reputation - meanReputation)} → w ${f4(profile.weights.get(id) ?? 0)}`,
+    );
   }
   // Which rated movies carry a trait: A[t] = Σ share·w over them / (count + 2).
   const carriers = (type: "keyword" | "genre" | "director" | "cast", value: string) =>
@@ -186,6 +232,7 @@ async function main() {
   });
   const detailArg = process.argv.find((arg) => arg.startsWith("--detail"));
   const detailId = detailArg?.includes("=") ? Number(detailArg.split("=")[1]) : null;
+  const jsonPath = process.argv.find((arg) => arg.startsWith("--json="))?.slice("--json=".length);
 
   const pool = await fetchPool(client);
   const poolBytes = Buffer.byteLength(JSON.stringify(pool));
@@ -215,7 +262,7 @@ async function main() {
     process.exit(1);
   }
 
-  const tops: { name: string; ids: number[] }[] = [];
+  const tops: { name: string; ids: number[]; titles: string[] }[] = [];
   for (const persona of PERSONAS) {
     const rows = rowsFor(persona);
     const { results, coldStart } = rankForYou({
@@ -227,7 +274,13 @@ async function main() {
     });
     console.log(`\n## ${persona.name}${coldStart ? " (cold start)" : ""}`);
     results.forEach((r, i) => printResult(i + 1, r, features));
-    tops.push({ name: persona.name, ids: results.map((r) => r.movieId) });
+    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);
+    console.log(
+      `  → mean popularity pct ${f3(mean(results.map((r) => r.breakdown.popularityPercentile)))}` +
+        ` · mean quality ${f3(mean(results.map((r) => r.breakdown.features.quality)))}` +
+        ` · "higher than most viewers" reasons: ${results.filter((r) => CROWD_GAP_REASON.test(r.reason)).length}`,
+    );
+    tops.push({ name: persona.name, ids: results.map((r) => r.movieId), titles: results.map((r) => r.title) });
     if (detailArg && persona === PERSONAS[0]) {
       const target = detailId === null ? results[0] : results.find((r) => r.movieId === detailId);
       if (target) printDetail(persona, rows, pool, features, target);
@@ -246,6 +299,10 @@ async function main() {
         `  ${tops[i].name} × ${tops[j].name}: ${shared.length}${titles ? ` (${titles})` : ""} ${ok ? "ok" : `FAIL (> ${MAX_OVERLAP})`}`,
       );
     }
+  }
+  if (jsonPath) {
+    writeFileSync(jsonPath, JSON.stringify(tops, null, 2));
+    console.log(`\nWrote top-${TOP_N} lists to ${jsonPath}`);
   }
   process.exit(failed ? 1 : 0);
 }
