@@ -27,7 +27,10 @@ export const WEIGHT_CLIP = 1.5;
 /**
  * Ratings far from a movie's reputation carry more taste information; 0.5
  * keeps loved classics meaningful. A rated movie's base weight is
- * (rating − mu) − SURPRISE_BETA × (movie_avg5 − catalog_avg5).
+ * (rating − mu) − SURPRISE_BETA × offset, where offset is the movie's
+ * reputation (movie_avg5 − catalog_avg5) relative to the average reputation of
+ * everything the user rated. Measuring it against the user's own ratings keeps
+ * a fan of acclaimed films from having every love shrunk at once.
  */
 export const SURPRISE_BETA = 0.5;
 
@@ -172,8 +175,9 @@ export const DISCOVERY_DEFAULT = 50;
 /** Shared keywords/genres named in a "Because you loved …" reason. */
 export const EXPLAIN_SHARED_TERMS = 2;
 /**
- * An anchor rated at least this many stars above its crowd score (movie_avg5)
- * is explained as "You rated {title} higher than most viewers".
+ * An anchor rated at least this many stars above its crowd score (movie_avg5),
+ * whose reputation is below the catalog average, is explained as "You rated
+ * {title} higher than most viewers": an under-appreciated film the user loved.
  */
 export const CROWD_GAP_REASON_STARS = 1;
 export const REASON_COLD_START = "Popular and highly rated";

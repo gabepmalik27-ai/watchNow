@@ -27,6 +27,8 @@ export type Anchor = {
   rating: number;
   /** The movie's crowd score on the 0–5 scale; null when it isn't in the catalog. */
   crowdScore5: number | null;
+  /** movie_avg5 − catalog_avg5 (absolute, not user-relative); null when not in the catalog. */
+  reputation: number | null;
 };
 
 export type TasteProfile = {
@@ -119,6 +121,17 @@ export function buildProfile(
   const ratings = sorted.flatMap((row) => (row.rating === null ? [] : [row.rating]));
   const mu = shrunkMean(ratings);
 
+  // Each rated movie's reputation, and their mean: the user's own baseline.
+  const reputations = new Map<number, number>();
+  for (const row of sorted) {
+    const movie = featuresById.get(row.movie_id);
+    if (row.rating !== null && movie) reputations.set(row.movie_id, surpriseOffset(movie, poolMean));
+  }
+  const meanReputation =
+    reputations.size === 0
+      ? 0
+      : [...reputations.values()].reduce((total, r) => total + r, 0) / reputations.size;
+
   const sums: Record<TraitType, Map<string, number>> = {
     keyword: new Map(),
     genre: new Map(),
@@ -137,7 +150,9 @@ export function buildProfile(
 
   for (const row of sorted) {
     const movie = featuresById.get(row.movie_id);
-    const offset = movie ? surpriseOffset(movie, poolMean) : 0;
+    const reputation = reputations.get(row.movie_id);
+    // Relative to the user's own baseline; 0 for unrated or unknown movies.
+    const offset = reputation === undefined ? 0 : reputation - meanReputation;
     // Surprise, then decay, then the clamp (see SURPRISE_BETA, WEIGHT_CLIP).
     const w = clampWeight(baseWeight(row, mu, offset) * recencyDecay(row.updated_at, now));
     if (w === 0) continue;
@@ -148,6 +163,7 @@ export function buildProfile(
         w,
         rating: row.rating,
         crowdScore5: movie ? crowdScore5(movie, poolMean) : null,
+        reputation: reputation ?? null,
       });
     }
 

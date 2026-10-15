@@ -157,6 +157,17 @@ describe("surprise-adjusted weights (T24)", () => {
   const godfatherLike = known(1, 8.7); // movie_avg5 4.35
   const obscure = known(2, 6.0); // movie_avg5 3.0
   const classic = known(3, 8.8); // movie_avg5 4.4
+  // Offsets are measured against the mean reputation of the user's rated
+  // movies. This 4★ (movie_avg5 1.45, offset −1.85) brings that mean to 0:
+  // (1.05 − 0.3 + 1.1 − 1.85) / 4 = 0, so the spec values hold unchanged.
+  const balancer = known(4, 2.9);
+  const specRows = (classicUpdatedAt = NOW.toISOString()) => [
+    rated(1, 5),
+    rated(2, 5),
+    rated(3, 3, classicUpdatedAt),
+    rated(4, 4),
+  ];
+  const specFeatures = byId([godfatherLike, obscure, classic, balancer]);
 
   it("matches the spec values before decay and clamp", () => {
     expect(ratedBaseWeight(5, 4.0, 4.35 - 3.3)).toBeCloseTo(0.475); // ≈ +0.48
@@ -174,29 +185,40 @@ describe("surprise-adjusted weights (T24)", () => {
   });
 
   it("applies surprise, then decay, then the ±1.5 clamp in buildProfile", () => {
-    // Ratings 5, 5, 3 → mu = (13 + 7) / 5 = 4.0 exactly.
-    const profile = buildProfile(
-      [rated(1, 5), rated(2, 5), rated(3, 3)],
-      byId([godfatherLike, obscure, classic]),
-      flatPercentile,
-      NOW,
-      POOL_MEAN,
-    );
+    // Ratings 5, 5, 3, 4 → mu = (17 + 7) / 6 = 4.0 exactly.
+    const profile = buildProfile(specRows(), specFeatures, flatPercentile, NOW, POOL_MEAN);
     expect(profile.mu).toBe(4);
     expect(profile.weights.get(1)).toBeCloseTo(0.475);
     expect(profile.weights.get(2)).toBeCloseTo(1.15);
     expect(profile.weights.get(3)).toBe(-1.5); // −1.55 before the clamp
+    expect(profile.weights.get(4)).toBeCloseTo(0.925); // 0 − 0.5 × (−1.85)
 
     // Decay comes before the clamp: half a year halves −1.55 to −0.775, not −0.75.
     const halfLifeAgo = new Date(NOW.getTime() - 180 * 86_400_000).toISOString();
-    const decayed = buildProfile(
-      [rated(1, 5), rated(2, 5), rated(3, 3, halfLifeAgo)],
-      byId([godfatherLike, obscure, classic]),
+    const decayed = buildProfile(specRows(halfLifeAgo), specFeatures, flatPercentile, NOW, POOL_MEAN);
+    expect(decayed.weights.get(3)).toBeCloseTo(-0.775);
+  });
+
+  it("measures offsets against the user's own ratings, so loving only acclaimed films shrinks nothing", () => {
+    // Three loved classics with the same strong reputation: relative offsets are all 0.
+    const classics = [known(10, 8.7), known(11, 8.7), known(12, 8.7)];
+    const profile = buildProfile(
+      [rated(10, 5), rated(11, 5), rated(12, 5)],
+      byId(classics),
       flatPercentile,
       NOW,
       POOL_MEAN,
     );
-    expect(decayed.weights.get(3)).toBeCloseTo(-0.775);
+    // mu = (15 + 7) / 5 = 4.4; w = 5 − 4.4 with no surprise penalty.
+    for (const id of [10, 11, 12]) expect(profile.weights.get(id)).toBeCloseTo(0.6);
+  });
+
+  it("records the absolute reputation on anchors", () => {
+    const profile = buildProfile(specRows(), specFeatures, flatPercentile, NOW, POOL_MEAN);
+    const byMovie = new Map(profile.anchors.map((a) => [a.movieId, a]));
+    expect(byMovie.get(1)?.reputation).toBeCloseTo(1.05);
+    expect(byMovie.get(2)?.reputation).toBeCloseTo(-0.3);
+    expect(byMovie.get(4)?.reputation).toBeCloseTo(-1.85);
   });
 
   it("leaves watched, watchlist and not-interested weights unchanged", () => {

@@ -77,10 +77,11 @@ describe("explain", () => {
 
   it("falls back to a liked genre, then the cold-start text", () => {
     const drama = movie(1, { genres: ["Drama"], keywords: ["family"] });
-    // The fixture Interstellar has the default 7.0 average (crowd score 3.5),
-    // so its 5★ is 1.5 stars above the crowd: the crowd-gap wording applies.
+    // The fixture Interstellar's 5★ is 1.5 stars above its crowd score
+    // (3.5), but its reputation is exactly average, not below it, so the
+    // crowd-gap wording doesn't apply.
     expect(explain(scored(drama, {}), profile, features, null)).toBe(
-      "You rated Interstellar higher than most viewers",
+      "Because you loved Interstellar: Drama",
     );
     const western = movie(2, { genres: ["Western"] });
     expect(explain(scored(western, {}), profile, features, null)).toBe("Popular and highly rated");
@@ -118,6 +119,28 @@ describe("explain: crowd gap", () => {
     // 5 − 3.0 = 2 stars above the crowd.
     expect(explain(scored(candidate, { keyword: 0.3 }), crowdProfile, crowdFeatures, null)).toBe(
       "You rated Hackers higher than most viewers",
+    );
+  });
+
+  it("keeps 'Because you loved' for a well-regarded film even when rated ≥ 1 star above the crowd", () => {
+    const wellRegarded = movie(510, {
+      title: "Toy Story",
+      vote_average: 8.0, // movie_avg5 4.0: above the 3.5 catalog average
+      vote_count: 1e12,
+      keywords: ["toy"],
+      genres: ["Animation"],
+    });
+    const f = byId([wellRegarded, movie(511), movie(512)]);
+    const p = buildProfile(
+      [rated(510, 5), rated(511, 3), rated(512, 3)],
+      f,
+      flatPercentile,
+      NOW,
+      FIXTURE_POOL_MEAN,
+    );
+    // Gap 5 − 4.0 = 1.0, but the reputation is above average.
+    expect(explain(scored(movie(610, { keywords: ["toy"] }), { keyword: 0.3 }), p, f, null)).toBe(
+      "Because you loved Toy Story: toy",
     );
   });
 

@@ -21,7 +21,8 @@ function byAffinity(a: Term, b: Term): number {
  * 2. cold start → "Popular and highly rated"
  * 3. best anchor (rated, w > 0) by positive shared keyword + genre affinity
  *    → "You rated {title} higher than most viewers" when the user rated it
- *      ≥ CROWD_GAP_REASON_STARS above its crowd score, otherwise
+ *      ≥ CROWD_GAP_REASON_STARS above its crowd score and its reputation is
+ *      below the catalog average (an under-appreciated film), otherwise
  *    → "Because you loved {title}: {a}, {b}"
  * 4. best liked genre → "Matches your taste for {genre}", else rule 2's text
  */
@@ -72,8 +73,13 @@ export function explain(
     }
   }
   if (best) {
-    const { rating, crowdScore5 } = best.anchor;
-    if (crowdScore5 !== null && rating - crowdScore5 >= CROWD_GAP_REASON_STARS) {
+    const { rating, crowdScore5, reputation } = best.anchor;
+    if (
+      crowdScore5 !== null &&
+      reputation !== null &&
+      reputation < 0 &&
+      rating - crowdScore5 >= CROWD_GAP_REASON_STARS
+    ) {
       return `You rated ${best.title} higher than most viewers`;
     }
     return `Because you loved ${best.title}: ${best.terms.map((t) => t.name).join(", ")}`;

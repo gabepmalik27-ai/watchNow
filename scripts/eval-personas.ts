@@ -150,14 +150,29 @@ function printDetail(
 
   console.log(`\n=== Worked example: ${persona.name} → ${movie.title} (id ${movie.id}) ===`);
   console.log(`mu = ${f4(profile.mu)}   ratedCount = ${profile.ratedCount}   pUser = ${f4(profile.pUser)}`);
+  const reputationOf = (id: number) => {
+    const m = features.get(id);
+    return m ? crowdScore5(m, C) - C / 2 : null;
+  };
+  const known = persona.ratings.flatMap(([id]) => {
+    const r = reputationOf(id);
+    return r === null ? [] : [r];
+  });
+  const meanReputation = known.reduce((a, b) => a + b, 0) / Math.max(1, known.length);
   console.log(`catalog_avg5 = C / 2 = ${f4(C)} / 2 = ${f4(C / 2)}`);
-  console.log("weights per rated movie: w = clamp((rating − mu) − 0.5 × (movie_avg5 − catalog_avg5), ±1.5)");
+  console.log(`mean reputation of rated movies = ${f4(meanReputation)}`);
+  console.log(
+    "weights per rated movie: reputation = movie_avg5 − catalog_avg5; offset = reputation − mean;" +
+      " w = clamp((rating − mu) − 0.5 × offset, ±1.5)",
+  );
   for (const [id, title, rating] of persona.ratings) {
     const m = features.get(id);
     const avg5 = m ? crowdScore5(m, C) : null;
+    const reputation = reputationOf(id);
     console.log(
       `  ${title}: rating ${rating}, R ${m?.vote_average} v ${m?.vote_count} → movie_avg5 ${avg5 === null ? "?" : f4(avg5)}` +
-        ` offset ${avg5 === null ? "?" : f4(avg5 - C / 2)} → w ${f4(profile.weights.get(id) ?? 0)}`,
+        ` reputation ${reputation === null ? "?" : f4(reputation)}` +
+        ` offset ${reputation === null ? "0" : f4(reputation - meanReputation)} → w ${f4(profile.weights.get(id) ?? 0)}`,
     );
   }
   // Which rated movies carry a trait: A[t] = Σ share·w over them / (count + 2).
