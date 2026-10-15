@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { MovieRow } from "@/components/movie/MovieRow";
 import { PosterButton } from "@/components/movie/PosterButton";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -14,6 +15,38 @@ import type { CatalogMovie } from "@/types/movie";
 
 /** Keeps the "have you seen these?" row to a scrollable length. */
 const CANDIDATE_ROW_SIZE = 40;
+
+/** A TMDB id as it may appear in ?movie= (same rule as /api/movies). */
+const MOVIE_ID_PATTERN = /^[1-9]\d{0,9}$/;
+
+/**
+ * /rate?movie=ID: opens the rating dialog for that movie once it's known
+ * (from the pool, the client cache, or /api/movies). Closing the dialog
+ * drops the param without a reload. Invalid or unknown ids are ignored.
+ */
+function RateDeepLink({ pool }: { pool: CatalogMovie[] }) {
+  const raw = useSearchParams().get("movie");
+  const router = useRouter();
+  const { openMovie } = useMovieDetail();
+  const id = raw && MOVIE_ID_PATTERN.test(raw) ? Number(raw) : null;
+  const inPool = id === null ? undefined : pool.find((movie) => movie.id === id);
+  const { movies } = useMoviesByIds(id !== null && !inPool ? [id] : []);
+  const movie = inPool ?? movies[0];
+  // The id already opened, so re-renders don't reopen it after it's closed.
+  const openedRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (id === null) openedRef.current = null;
+    if (!movie || openedRef.current === movie.id) return;
+    openedRef.current = movie.id;
+    openMovie(movie, undefined, {
+      mode: "rate",
+      onClose: () => router.replace("/rate", { scroll: false }),
+    });
+  }, [id, movie, openMovie, router]);
+
+  return null;
+}
 
 type RateClientProps = {
   /** Most-voted movies from getCandidatePool on the server. */
@@ -56,6 +89,10 @@ export function RateClient({ pool }: RateClientProps) {
 
   return (
     <main className="pb-16 pt-8">
+      {/* useSearchParams needs a Suspense boundary on a statically rendered page. */}
+      <Suspense fallback={null}>
+        <RateDeepLink pool={pool} />
+      </Suspense>
       <PageContainer className="flex flex-col gap-8">
         <div className="flex flex-col gap-2">
           <div className="flex items-baseline gap-3">
