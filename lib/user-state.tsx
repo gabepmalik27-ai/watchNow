@@ -15,6 +15,7 @@ import { useAuth } from "@/lib/auth";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import {
   applyRating,
+  applyRemoveRating,
   applyToggleWatched,
   applyToggleWatchlist,
   emptyUserMovie,
@@ -23,6 +24,8 @@ import type { UserMovie } from "@/types/movie";
 
 export type LastRating = {
   movieId: number;
+  /** "removed": the rating was cleared; `rating` is the value that was removed. */
+  kind: "rated" | "removed";
   rating: number;
   /** Increments on every rating so repeat ratings of the same value still re-trigger the toast. */
   token: number;
@@ -32,6 +35,8 @@ type UserStateContextValue = {
   userMovies: UserMovie[];
   getUserMovie: (movieId: number) => UserMovie | undefined;
   setRating: (movieId: number, rating: number) => void;
+  /** Clears the rating (the movie stays watched), with the same Undo as setRating. */
+  removeRating: (movieId: number) => void;
   undoLastRating: () => void;
   lastRating: LastRating | null;
   toggleWatched: (movieId: number) => void;
@@ -254,8 +259,24 @@ export function UserStateProvider({ children }: { children: ReactNode }) {
         index,
       };
       tokenRef.current += 1;
-      setLastRating({ movieId, rating, token: tokenRef.current });
+      setLastRating({ movieId, kind: "rated", rating, token: tokenRef.current });
       apply(movieId, upsert(current, applyRating(index === -1 ? undefined : current[index], movieId, rating)));
+    },
+    [apply],
+  );
+
+  const removeRating = useCallback(
+    (movieId: number) => {
+      if (!userIdRef.current) return;
+      const current = userMoviesRef.current;
+      const index = current.findIndex((m) => m.movie_id === movieId);
+      const previous = index === -1 ? undefined : current[index];
+      const next = applyRemoveRating(previous);
+      if (!previous || previous.rating === null || !next) return;
+      undoRef.current = { movieId, previous, index };
+      tokenRef.current += 1;
+      setLastRating({ movieId, kind: "removed", rating: previous.rating, token: tokenRef.current });
+      apply(movieId, upsert(current, next));
     },
     [apply],
   );
@@ -281,8 +302,8 @@ export function UserStateProvider({ children }: { children: ReactNode }) {
     (movieId: number) => {
       if (!userIdRef.current) return;
       const current = userMoviesRef.current;
-      const existing = current.find((m) => m.movie_id === movieId);
-      apply(movieId, upsert(current, applyToggleWatched(existing, movieId)));
+      const next = applyToggleWatched(current.find((m) => m.movie_id === movieId), movieId);
+      if (next) apply(movieId, upsert(current, next));
     },
     [apply],
   );
@@ -333,6 +354,7 @@ export function UserStateProvider({ children }: { children: ReactNode }) {
       userMovies,
       getUserMovie,
       setRating,
+      removeRating,
       undoLastRating,
       lastRating,
       toggleWatched,
@@ -348,6 +370,7 @@ export function UserStateProvider({ children }: { children: ReactNode }) {
       userMovies,
       getUserMovie,
       setRating,
+      removeRating,
       undoLastRating,
       lastRating,
       toggleWatched,

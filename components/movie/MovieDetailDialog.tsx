@@ -20,6 +20,8 @@ const CAST_SHOWN = 5;
 
 const PRIMARY_BUTTON =
   "inline-flex min-h-11 items-center justify-center rounded-full bg-electric px-6 text-sm font-semibold text-text transition-colors hover:bg-soft-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-electric focus-visible:ring-offset-2 focus-visible:ring-offset-panel";
+const TEXT_BUTTON =
+  "min-h-11 w-fit rounded px-1 text-sm font-medium text-soft-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-electric";
 const SECONDARY_BUTTON =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border px-6 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-electric focus-visible:ring-offset-2 focus-visible:ring-offset-panel";
 
@@ -38,7 +40,7 @@ export function MovieDetailDialog({ movie, mode, onClose, children }: MovieDetai
   const dialogRef = useRef<HTMLDialogElement>(null);
   const router = useRouter();
   const { status } = useAuth();
-  const { getUserMovie, setRating, toggleWatched, toggleWatchlist } = useUserState();
+  const { getUserMovie, setRating, removeRating, toggleWatched, toggleWatchlist } = useUserState();
 
   // Keep rendering the last movie while the closing animation/unmount settles,
   // so content doesn't blank out the moment `movie` becomes null.
@@ -205,16 +207,32 @@ export function MovieDetailDialog({ movie, mode, onClose, children }: MovieDetai
                         Tap a star — half stars supported
                       </p>
                     ) : (
-                      <p className="text-xs text-muted">{rating.toFixed(1)} out of 5</p>
+                      <>
+                        <p className="text-xs text-muted">{rating.toFixed(1)} out of 5</p>
+                        <button
+                          type="button"
+                          onClick={() => removeRating(current.id)}
+                          className={TEXT_BUTTON}
+                        >
+                          Remove rating
+                        </button>
+                      </>
                     )}
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <FilterChip
                       label="Watched"
                       selected={watched}
+                      locked={rating !== null}
+                      describedBy={rating !== null ? "watched-locked-hint" : undefined}
                       onClick={() => toggleWatched(current.id)}
                     />
+                    {rating !== null ? (
+                      <p id="watched-locked-hint" className="text-xs text-muted">
+                        Remove your rating first
+                      </p>
+                    ) : null}
                     {watched ? null : (
                       <FilterChip
                         label="Watchlist"
@@ -225,40 +243,51 @@ export function MovieDetailDialog({ movie, mode, onClose, children }: MovieDetai
                   </div>
                 </>
               ) : (
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      signedIn ? closeAndGo(`/rate?movie=${current.id}`) : goToLogin()
-                    }
-                    className={PRIMARY_BUTTON}
-                  >
-                    {rating === null ? "Rate this movie" : "Update your rating"}
-                  </button>
-                  {watched ? (
-                    <span className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border px-4 text-sm font-medium text-muted">
-                      <span aria-hidden="true">✓</span> Watched
-                    </span>
-                  ) : (
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      aria-pressed={signedIn ? onWatchlist : undefined}
-                      onClick={() => (signedIn ? toggleWatchlist(current.id) : goToLogin())}
-                      className={`${SECONDARY_BUTTON} ${
-                        onWatchlist
-                          ? "border-electric bg-raised text-text"
-                          : "border-border bg-panel text-text hover:bg-raised"
-                      }`}
+                      onClick={() =>
+                        signedIn ? closeAndGo(`/rate?movie=${current.id}`) : goToLogin()
+                      }
+                      className={PRIMARY_BUTTON}
                     >
-                      {onWatchlist ? (
-                        <>
-                          <span aria-hidden="true">✓</span> On watchlist
-                        </>
-                      ) : (
-                        "Add to watchlist"
-                      )}
+                      {rating === null ? "Rate this movie" : "Update your rating"}
                     </button>
-                  )}
+                    {watched ? (
+                      <span className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border px-4 text-sm font-medium text-muted">
+                        <span aria-hidden="true">✓</span> Watched
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        aria-pressed={signedIn ? onWatchlist : undefined}
+                        onClick={() => (signedIn ? toggleWatchlist(current.id) : goToLogin())}
+                        className={`${SECONDARY_BUTTON} ${
+                          onWatchlist
+                            ? "border-electric bg-raised text-text"
+                            : "border-border bg-panel text-text hover:bg-raised"
+                        }`}
+                      >
+                        {onWatchlist ? (
+                          <>
+                            <span aria-hidden="true">✓</span> On watchlist
+                          </>
+                        ) : (
+                          "Add to watchlist"
+                        )}
+                      </button>
+                    )}
+                  </div>
+                  {signedIn && rating !== null ? (
+                    <button
+                      type="button"
+                      onClick={() => removeRating(current.id)}
+                      className={TEXT_BUTTON}
+                    >
+                      Remove rating
+                    </button>
+                  ) : null}
                 </div>
               )}
             </div>

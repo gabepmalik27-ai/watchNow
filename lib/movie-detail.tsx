@@ -83,9 +83,11 @@ export function MovieDetailProvider({ children }: { children: ReactNode }) {
       <Toast
         toastKey={lastRating.token}
         message={
-          toastMovie
-            ? `Rated ${toastMovie.title} ★${lastRating.rating.toFixed(1)}`
-            : `Rated ★${lastRating.rating.toFixed(1)}`
+          lastRating.kind === "removed"
+            ? "Rating removed"
+            : toastMovie
+              ? `Rated ${toastMovie.title} ★${lastRating.rating.toFixed(1)}`
+              : `Rated ★${lastRating.rating.toFixed(1)}`
         }
         actionLabel="Undo"
         onAction={undoLastRating}
