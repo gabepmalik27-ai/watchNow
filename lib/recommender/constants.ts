@@ -96,8 +96,12 @@ export const MAX_PER_DIRECTOR = 2;
 export const POOL_SIZE = 2000;
 /** PostgREST returns at most 1000 rows per request. */
 export const POOL_PAGE_SIZE = 1000;
+/** For You and Home's personalized row. */
 export const FOR_YOU_LIMIT = 20;
-export const RECOMMEND_LIMIT = 5;
+/** Recommend shows this many results, and "Show more" adds this many more… */
+export const RECOMMEND_RESULT_COUNT = 10;
+/** …up to this many. */
+export const RECOMMEND_MAX_RESULTS = 30;
 
 // ─── Context (context.ts) ───────────────────────────────────────────────────
 

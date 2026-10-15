@@ -127,23 +127,37 @@ export function scoreCandidates(options: ScoreOptions): ScoredCandidate[] {
 /**
  * Takes results in order, skipping any whose director already has
  * `maxPerDirector` results. Movies without a director are never capped.
+ * `skipped` counts candidates passed over for the cap before the list filled.
  */
+export function applyDirectorCapWithStats(
+  sorted: readonly ScoredCandidate[],
+  limit: number,
+  maxPerDirector: number,
+): { results: ScoredCandidate[]; skipped: number } {
+  const perDirector = new Map<string, number>();
+  const results: ScoredCandidate[] = [];
+  let skipped = 0;
+  for (const candidate of sorted) {
+    if (results.length >= limit) break;
+    const director = candidate.movie.director;
+    if (director) {
+      const count = perDirector.get(director) ?? 0;
+      if (count >= maxPerDirector) {
+        skipped += 1;
+        continue;
+      }
+      perDirector.set(director, count + 1);
+    }
+    results.push(candidate);
+  }
+  return { results, skipped };
+}
+
+/** applyDirectorCapWithStats without the stats. */
 export function applyDirectorCap(
   sorted: readonly ScoredCandidate[],
   limit: number,
   maxPerDirector: number,
 ): ScoredCandidate[] {
-  const perDirector = new Map<string, number>();
-  const result: ScoredCandidate[] = [];
-  for (const candidate of sorted) {
-    if (result.length >= limit) break;
-    const director = candidate.movie.director;
-    if (director) {
-      const count = perDirector.get(director) ?? 0;
-      if (count >= maxPerDirector) continue;
-      perDirector.set(director, count + 1);
-    }
-    result.push(candidate);
-  }
-  return result;
+  return applyDirectorCapWithStats(sorted, limit, maxPerDirector).results;
 }

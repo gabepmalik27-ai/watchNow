@@ -12,6 +12,7 @@ import {
 import { buildProfile } from "@/lib/recommender/profile";
 import {
   applyDirectorCap,
+  applyDirectorCapWithStats,
   effectiveWeights,
   scoreCandidates,
   type ScoredCandidate,
@@ -199,6 +200,11 @@ describe("applyDirectorCap", () => {
   it("keeps at most two per director and fills from further down", () => {
     const sorted = [make(1, "Nolan"), make(2, "Nolan"), make(3, "Nolan"), make(4, null), make(5, "Scott")];
     expect(applyDirectorCap(sorted, 4, 2).map((c) => c.movie.id)).toEqual([1, 2, 4, 5]);
+  });
+
+  it("counts the candidates it skipped for the cap", () => {
+    const sorted = [make(1, "Nolan"), make(2, "Nolan"), make(3, "Nolan"), make(4, "Nolan"), make(5, null)];
+    expect(applyDirectorCapWithStats(sorted, 3, 2)).toMatchObject({ skipped: 2 });
   });
 
   it("never caps movies without a director", () => {

@@ -9,6 +9,8 @@ import {
   DISCOVERY_MIN,
   EXPERIENCES,
   MOODS,
+  RECOMMEND_MAX_RESULTS,
+  RECOMMEND_RESULT_COUNT,
   TIMES,
 } from "@/lib/recommender/constants";
 
@@ -25,7 +27,11 @@ export async function GET() {
   }
 }
 
-/** POST /api/recommend { mood, experience, time, discovery } → 5 results for the Recommend page. */
+/**
+ * POST /api/recommend { mood, experience, time, discovery, count? } → the
+ * Recommend page's results. count is 10, 20 or 30 (default 10); scoring is
+ * deterministic, so a larger count extends the same list.
+ */
 export async function POST(request: NextRequest) {
   let body: unknown;
   try {
@@ -34,13 +40,14 @@ export async function POST(request: NextRequest) {
     return badRequest("Body must be JSON");
   }
   const context = parseContext(body);
-  if (!context) {
+  const count = parseCount(body);
+  if (!context || count === null) {
     return badRequest(
-      `Expected { mood: ${MOODS.join("|")}|null, experience: ${EXPERIENCES.join("|")}|null, time: ${TIMES.join("|")}|null, discovery: ${DISCOVERY_MIN}–${DISCOVERY_MAX} }`,
+      `Expected { mood: ${MOODS.join("|")}|null, experience: ${EXPERIENCES.join("|")}|null, time: ${TIMES.join("|")}|null, discovery: ${DISCOVERY_MIN}–${DISCOVERY_MAX}, count?: a multiple of ${RECOMMEND_RESULT_COUNT} up to ${RECOMMEND_MAX_RESULTS} }`,
     );
   }
   try {
-    const result = await getContextRecommendations(context);
+    const result = await getContextRecommendations(context, count);
     if (!result) return unauthorized();
     return NextResponse.json(result, { headers: NO_STORE });
   } catch {
@@ -70,6 +77,22 @@ function parseContext(body: unknown): RecommendContext | null {
     return null;
   }
   return { mood, experience, time, discovery };
+}
+
+/** count: optional; a multiple of RECOMMEND_RESULT_COUNT up to RECOMMEND_MAX_RESULTS. */
+function parseCount(body: unknown): number | null {
+  const count = (body as Record<string, unknown>)?.count;
+  if (count === undefined) return RECOMMEND_RESULT_COUNT;
+  if (
+    typeof count !== "number" ||
+    !Number.isInteger(count) ||
+    count < RECOMMEND_RESULT_COUNT ||
+    count > RECOMMEND_MAX_RESULTS ||
+    count % RECOMMEND_RESULT_COUNT !== 0
+  ) {
+    return null;
+  }
+  return count;
 }
 
 function badRequest(message: string) {

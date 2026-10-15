@@ -103,6 +103,8 @@ The first rule that applies wins:
 
 Every result also carries its full score breakdown. Open Recommend with `?debug=1` to see it under each result.
 
+Every list also carries `diagnostics`: how many results were requested and returned, the pool size, and where the rest went (already rated/watched/watchlisted/dismissed, outside the time filter, skipped by the director cap, missing from the catalog). `?debug=1` on Recommend and on For You shows it, so a short list explains itself.
+
 ---
 
 ## 2. Every constant and why it has that value
@@ -130,7 +132,8 @@ Every result also carries its full score breakdown. Open Recommend with `?debug=
 | `PERSONALIZE_PROMPT_RATINGS` | 5 | Personalization switches on at 3, but it's still thin. Prompting until 5 gets the user to a more stable profile. |
 | `MAX_PER_DIRECTOR` | 2 | Stops one loved director from filling a whole row (e.g. six Nolan films). |
 | `POOL_SIZE` / `POOL_PAGE_SIZE` | 2000 / 1000 | 2000 well-known movies is large enough for variety and small enough to cache (≈ 1.24 MB, under Next's 2 MB data-cache limit). PostgREST returns at most 1000 rows per request. |
-| `FOR_YOU_LIMIT` / `RECOMMEND_LIMIT` | 20 / 5 | A scrollable row, and "five for tonight" as the Recommend page has always promised. |
+| `FOR_YOU_LIMIT` | 20 | A scrollable row for For You and Home. |
+| `RECOMMEND_RESULT_COUNT` / `RECOMMEND_MAX_RESULTS` | 10 / 30 | Recommend shows 10; "Show more" asks for 10 more, up to 30. Scoring is deterministic, so a larger count extends the same list rather than reshuffling it. |
 | `CONTEXT_HITS_FOR_FULL_MATCH` | 2 | Movies carry ~2–4 genres. Requiring 2 hits for a full match means one matching genre counts as "partly fits" and two as "fits". |
 | `CONTEXT_PENALTY_PER_GENRE` | 0.5 | One clashing genre (Relaxing + Horror) cancels half a match; two cancel everything. |
 | `DISCOVERY_MIN/MAX/DEFAULT` | 0 / 100 / 50 | The slider's range; the default is balanced. |
@@ -237,7 +240,7 @@ Interstellar's reputation is +0.73, well above average, so the crowd-gap wording
 - **Features are relative to the candidate set.** Min-max rescaling means a feature value says "how this compares with the other candidates", not an absolute strength. When a few movies score very negatively (sequels to a hated movie), an unrelated movie sits around 0.7 rather than 0. That's why Gravity's people feature is 0.62 even though nothing matched.
 - **A generous rater's 4★ is slightly negative,** because it is below their own baseline. Ratings are read relative to the user, not the scale.
 - **"Niche" means niche among the 2000 most-voted movies.** Surprise Me finds lesser-known films within well-known ones, not obscurities.
-- **Recommend has no director cap.** Five results is too few for it to matter, and context already varies the list.
+- **Recommend has no director cap.** Context already varies the list. With "Show more" reaching 30 results, a cap may become worth adding.
 - **For You is computed per request.** A rating made on For You removes that movie from the row immediately (client-side), and the full list re-scores on the next visit.
 
 ## 5. Tests and evaluation

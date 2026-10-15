@@ -15,7 +15,7 @@ import { explain } from "@/lib/recommender/explain";
 import { makePercentile, meanVoteAverage } from "@/lib/recommender/features";
 import { buildProfile, type TasteProfile } from "@/lib/recommender/profile";
 import {
-  applyDirectorCap,
+  applyDirectorCapWithStats,
   effectiveWeights,
   scoreCandidates,
   type ScoreBreakdown,
@@ -33,10 +33,29 @@ export type Recommendation = {
   breakdown: ScoreBreakdown;
 };
 
+/**
+ * Where candidates went, so a list shorter than requested can be explained
+ * (shown in the ?debug=1 panels).
+ */
+export type RankDiagnostics = {
+  requested: number;
+  returned: number;
+  poolSize: number;
+  /** Pool movies the user already rated, watched, watchlisted or dismissed. */
+  excludedByUser: number;
+  /** Removed by Recommend's hard runtime filter (0 for For You). */
+  removedByTimeFilter: number;
+  /** Passed over because their director already had MAX_PER_DIRECTOR results. */
+  removedByDirectorCap: number;
+  /** Scored but dropped because the catalog row was missing (set by the server). */
+  missingFromCatalog: number;
+};
+
 export type RecommendationSet = {
   results: Recommendation[];
   coldStart: boolean;
   ratedCount: number;
+  diagnostics: RankDiagnostics;
 };
 
 type RankInput = {
@@ -107,11 +126,20 @@ export function rankForYou(input: RankInput): RecommendationSet {
     coldStart: prep.coldStart,
     rarityTarget: prep.profile.pUser,
   });
-  const top = applyDirectorCap(scored, input.limit, MAX_PER_DIRECTOR);
+  const top = applyDirectorCapWithStats(scored, input.limit, MAX_PER_DIRECTOR);
   return {
-    results: top.map((s) => toRecommendation(s, prep.profile, prep.featuresById, null)),
+    results: top.results.map((s) => toRecommendation(s, prep.profile, prep.featuresById, null)),
     coldStart: prep.coldStart,
     ratedCount: prep.profile.ratedCount,
+    diagnostics: {
+      requested: input.limit,
+      returned: top.results.length,
+      poolSize: input.pool.length,
+      excludedByUser: input.pool.length - prep.candidates.length,
+      removedByTimeFilter: 0,
+      removedByDirectorCap: top.skipped,
+      missingFromCatalog: 0,
+    },
   };
 }
 
@@ -122,8 +150,9 @@ export function rankForContext(
   const prep = prepare(input);
   const { context } = input;
   const hasContext = hasContextSelection(context);
+  const timed = prep.candidates.filter((m) => passesTimeFilter(m.runtime_min, context.time));
   const scored = scoreCandidates({
-    candidates: prep.candidates.filter((m) => passesTimeFilter(m.runtime_min, context.time)),
+    candidates: timed,
     profile: prep.profile,
     popularityPercentile: prep.popularityPercentile,
     poolMean: prep.poolMean,
@@ -132,20 +161,26 @@ export function rankForContext(
     rarityTarget: rarityTargetFromDiscovery(context.discovery),
     contextMatch: hasContext ? (movie) => contextMatch(movie, context) : undefined,
   });
+  const top = scored.slice(0, input.limit);
   return {
-    results: scored
-      .slice(0, input.limit)
-      .map((s) => toRecommendation(s, prep.profile, prep.featuresById, context)),
+    results: top.map((s) => toRecommendation(s, prep.profile, prep.featuresById, context)),
     coldStart: prep.coldStart,
     ratedCount: prep.profile.ratedCount,
+    diagnostics: {
+      requested: input.limit,
+      returned: top.length,
+      poolSize: input.pool.length,
+      excludedByUser: input.pool.length - prep.candidates.length,
+      removedByTimeFilter: prep.candidates.length - timed.length,
+      removedByDirectorCap: 0,
+      missingFromCatalog: 0,
+    },
   };
 }
 
 /** A recommendation with its catalog row, as the API and pages receive it. */
 export type RecommendedMovie = Recommendation & { movie: CatalogMovie };
 
-export type RecommendationResponse = {
+export type RecommendationResponse = Omit<RecommendationSet, "results"> & {
   results: RecommendedMovie[];
-  coldStart: boolean;
-  ratedCount: number;
 };

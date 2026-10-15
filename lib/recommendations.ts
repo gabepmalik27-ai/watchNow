@@ -10,7 +10,7 @@ import {
   type RecommendationResponse,
   type RecommendationSet,
 } from "@/lib/recommender";
-import { FOR_YOU_LIMIT, RECOMMEND_LIMIT } from "@/lib/recommender/constants";
+import { FOR_YOU_LIMIT, RECOMMEND_RESULT_COUNT } from "@/lib/recommender/constants";
 import { createSupabaseServerClient, getCatalogClient } from "@/lib/supabase-server";
 import type { RecMovie, RecUserRow } from "@/types/movie";
 
@@ -54,12 +54,18 @@ async function loadInputs(): Promise<UserInputs | null> {
 async function hydrate(set: RecommendationSet): Promise<RecommendationResponse> {
   const movies = await getMoviesByIds(set.results.map((r) => r.movieId));
   const byId = new Map(movies.map((m) => [m.id, m]));
+  const results = set.results.flatMap((r) => {
+    const movie = byId.get(r.movieId);
+    return movie ? [{ ...r, movie }] : [];
+  });
   return {
     ...set,
-    results: set.results.flatMap((r) => {
-      const movie = byId.get(r.movieId);
-      return movie ? [{ ...r, movie }] : [];
-    }),
+    results,
+    diagnostics: {
+      ...set.diagnostics,
+      returned: results.length,
+      missingFromCatalog: set.results.length - results.length,
+    },
   };
 }
 
@@ -73,8 +79,9 @@ export async function getForYouRecommendations(
 
 export async function getContextRecommendations(
   context: RecommendContext,
+  count: number = RECOMMEND_RESULT_COUNT,
 ): Promise<RecommendationResponse | null> {
   const inputs = await loadInputs();
   if (!inputs) return null;
-  return hydrate(rankForContext({ ...inputs, context, now: new Date(), limit: RECOMMEND_LIMIT }));
+  return hydrate(rankForContext({ ...inputs, context, now: new Date(), limit: count }));
 }

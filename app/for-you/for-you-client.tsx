@@ -7,6 +7,7 @@ import { MovieRow } from "@/components/movie/MovieRow";
 import { RecommendationCard } from "@/components/movie/RecommendationCard";
 import { PosterBlock } from "@/components/movie/PosterBlock";
 import { PageContainer } from "@/components/layout/PageContainer";
+import { DiagnosticsPanel } from "@/components/ui/DiagnosticsPanel";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Panel } from "@/components/ui/Panel";
 import { PersonalizePrompt } from "@/components/ui/PersonalizePrompt";
@@ -15,7 +16,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { Tabs, type TabItem } from "@/components/ui/Tabs";
 import { useAuth } from "@/lib/auth";
 import { formatAudienceRating } from "@/lib/format";
-import type { RecommendedMovie } from "@/lib/recommender";
+import type { RecommendationResponse, RecommendedMovie } from "@/lib/recommender";
 import { useMoviesByIds } from "@/lib/use-movies-by-ids";
 import { useUserState } from "@/lib/user-state";
 import type { UserMovie } from "@/types/movie";
@@ -53,9 +54,11 @@ function describeActivity(userMovie: UserMovie, title: string): string | null {
 type ForYouClientProps = {
   /** Scored on the server by lib/recommendations.ts, best first. */
   recommendations: RecommendedMovie[];
+  /** ?debug=1: the full response, for the diagnostics panel. */
+  debug: RecommendationResponse | null;
 };
 
-export function ForYouClient({ recommendations }: ForYouClientProps) {
+export function ForYouClient({ recommendations, debug }: ForYouClientProps) {
   const router = useRouter();
   const { displayName } = useAuth();
   const {
@@ -141,6 +144,7 @@ export function ForYouClient({ recommendations }: ForYouClientProps) {
           <div className="flex flex-col gap-8">
             <ForYouCharts userMovies={userMovies} loaded={loaded} known={recommended} />
             {loaded ? <PersonalizePrompt ratedCount={ratedCount} /> : null}
+            {debug ? <DiagnosticsPanel diagnostics={debug.diagnostics} /> : null}
             {recommendedRow.length === 0 ? (
               <EmptyState
                 title="You've seen everything we'd suggest"

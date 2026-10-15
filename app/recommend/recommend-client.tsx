@@ -4,11 +4,18 @@ import { useState } from "react";
 import { MovieDetailButton } from "@/components/movie/MovieDetailButton";
 import { PosterBlock } from "@/components/movie/PosterBlock";
 import { PageContainer } from "@/components/layout/PageContainer";
+import { DiagnosticsPanel } from "@/components/ui/DiagnosticsPanel";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterChip } from "@/components/ui/FilterChip";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { formatAudienceRating } from "@/lib/format";
-import type { RecommendationResponse, RecommendedMovie, ScoreBreakdown } from "@/lib/recommender";
+import type {
+  RankDiagnostics,
+  RecommendContext,
+  RecommendationResponse,
+  RecommendedMovie,
+  ScoreBreakdown,
+} from "@/lib/recommender";
 import {
   DISCOVERY_DEFAULT,
   DISCOVERY_MAX,
@@ -16,7 +23,8 @@ import {
   EXPERIENCES,
   FEATURES,
   MOODS,
-  RECOMMEND_LIMIT,
+  RECOMMEND_MAX_RESULTS,
+  RECOMMEND_RESULT_COUNT,
   TIMES,
   type Experience,
   type Mood,
@@ -92,13 +100,36 @@ function BreakdownPanel({ breakdown }: { breakdown: ScoreBreakdown }) {
 type Status =
   | { kind: "incomplete" }
   | { kind: "loading" }
-  | { kind: "results"; results: RecommendedMovie[]; coldStart: boolean }
+  | {
+      kind: "results";
+      results: RecommendedMovie[];
+      diagnostics: RankDiagnostics;
+      /** The filters these results are for, so "Show more" extends the same list. */
+      context: RecommendContext;
+      /** False once the list hit RECOMMEND_MAX_RESULTS or came back short. */
+      canShowMore: boolean;
+      loadingMore: boolean;
+      moreError: boolean;
+    }
   | { kind: "error" };
 
 type RecommendClientProps = {
   /** Shows the score breakdown under each result (?debug=1). */
   debug: boolean;
 };
+
+async function fetchRecommendations(
+  context: RecommendContext,
+  count: number,
+): Promise<RecommendationResponse> {
+  const res = await fetch("/api/recommend", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...context, count }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as RecommendationResponse;
+}
 
 export function RecommendClient({ debug }: RecommendClientProps) {
   const [mood, setMood] = useState<Mood | null>(null);
@@ -108,18 +139,47 @@ export function RecommendClient({ debug }: RecommendClientProps) {
   const [status, setStatus] = useState<Status>({ kind: "incomplete" });
 
   async function handleGetRecommendations() {
+    const context: RecommendContext = { mood, experience, time, discovery };
     setStatus({ kind: "loading" });
     try {
-      const res = await fetch("/api/recommend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mood, experience, time, discovery }),
+      const data = await fetchRecommendations(context, RECOMMEND_RESULT_COUNT);
+      setStatus({
+        kind: "results",
+        results: data.results,
+        diagnostics: data.diagnostics,
+        context,
+        canShowMore:
+          data.results.length === RECOMMEND_RESULT_COUNT &&
+          RECOMMEND_RESULT_COUNT < RECOMMEND_MAX_RESULTS,
+        loadingMore: false,
+        moreError: false,
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as RecommendationResponse;
-      setStatus({ kind: "results", results: data.results, coldStart: data.coldStart });
     } catch {
       setStatus({ kind: "error" });
+    }
+  }
+
+  async function handleShowMore() {
+    if (status.kind !== "results") return;
+    const { context, results } = status;
+    const count = Math.min(results.length + RECOMMEND_RESULT_COUNT, RECOMMEND_MAX_RESULTS);
+    setStatus({ ...status, loadingMore: true, moreError: false });
+    try {
+      const data = await fetchRecommendations(context, count);
+      // Same inputs give the same order, so only the tail is new; filtering
+      // by id also guards against a rating made in between reshuffling it.
+      const shown = new Set(results.map((r) => r.movie.id));
+      const added = data.results.filter((r) => !shown.has(r.movie.id));
+      setStatus({
+        ...status,
+        results: [...results, ...added],
+        diagnostics: data.diagnostics,
+        canShowMore: data.results.length === count && count < RECOMMEND_MAX_RESULTS,
+        loadingMore: false,
+        moreError: false,
+      });
+    } catch {
+      setStatus({ ...status, loadingMore: false, moreError: true });
     }
   }
 
@@ -176,7 +236,7 @@ export function RecommendClient({ debug }: RecommendClientProps) {
         {status.kind === "incomplete" ? (
           <EmptyState
             title="Ready when you are"
-            description={`Pick a few filters above, or just tap the button — we'll choose ${RECOMMEND_LIMIT} for you.`}
+            description={`Pick a few filters above, or just tap the button — we'll choose ${RECOMMEND_RESULT_COUNT} for you.`}
           />
         ) : status.kind === "loading" ? (
           <div
@@ -184,7 +244,7 @@ export function RecommendClient({ debug }: RecommendClientProps) {
             role="status"
             aria-label="Finding recommendations"
           >
-            {Array.from({ length: RECOMMEND_LIMIT }, (_, i) => (
+            {Array.from({ length: RECOMMEND_RESULT_COUNT }, (_, i) => (
               <div key={i} className="flex flex-col gap-2">
                 <Skeleton className="aspect-[2/3] w-full" />
                 <Skeleton className="h-4 w-2/3" />
@@ -209,6 +269,7 @@ export function RecommendClient({ debug }: RecommendClientProps) {
             <h2 className="text-lg font-bold text-text">
               Your Recommendations
             </h2>
+            {debug ? <DiagnosticsPanel diagnostics={status.diagnostics} /> : null}
             <div className="grid grid-cols-2 gap-6 tablet:grid-cols-3 desktop:grid-cols-5">
               {status.results.map(({ movie, reason, breakdown }) => (
                 <div key={movie.id} className="flex flex-col gap-2">
@@ -232,6 +293,21 @@ export function RecommendClient({ debug }: RecommendClientProps) {
                 </div>
               ))}
             </div>
+            {status.canShowMore ? (
+              <button
+                type="button"
+                onClick={handleShowMore}
+                disabled={status.loadingMore}
+                className="min-h-11 w-fit self-center rounded-full border border-border bg-panel px-6 text-sm font-semibold text-text transition-colors hover:bg-raised disabled:cursor-wait disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-electric focus-visible:ring-offset-2 focus-visible:ring-offset-midnight"
+              >
+                {status.loadingMore ? "Loading…" : "Show more"}
+              </button>
+            ) : null}
+            {status.moreError ? (
+              <p role="alert" className="self-center text-sm text-muted">
+                Couldn&rsquo;t load more. Try again.
+              </p>
+            ) : null}
           </section>
         )}
       </PageContainer>
