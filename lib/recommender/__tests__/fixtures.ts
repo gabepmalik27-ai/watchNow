@@ -3,6 +3,12 @@ import type { RecMovie, RecUserRow } from "@/types/movie";
 export const NOW = new Date("2026-10-01T00:00:00.000Z");
 export const NOW_ISO = NOW.toISOString();
 
+/**
+ * Pool mean vote_average for profile tests. Fixture movies default to a 7.0
+ * average, so their surprise offset is exactly 0 and weights are rating − mu.
+ */
+export const FIXTURE_POOL_MEAN = 7;
+
 /** A pool movie with neutral defaults; override only what a test cares about. */
 export function movie(id: number, overrides: Partial<RecMovie> = {}): RecMovie {
   return {

@@ -24,6 +24,13 @@ export const WEIGHT_NOT_INTERESTED = -1.0;
  */
 export const WEIGHT_CLIP = 1.5;
 
+/**
+ * Ratings far from a movie's reputation carry more taste information; 0.5
+ * keeps loved classics meaningful. A rated movie's base weight is
+ * (rating − mu) − SURPRISE_BETA × (movie_avg5 − catalog_avg5).
+ */
+export const SURPRISE_BETA = 0.5;
+
 /** A signal loses half its weight every this many days since updated_at. */
 export const RECENCY_HALF_LIFE_DAYS = 180;
 export const MS_PER_DAY = 86_400_000;
@@ -164,4 +171,9 @@ export const DISCOVERY_DEFAULT = 50;
 
 /** Shared keywords/genres named in a "Because you loved …" reason. */
 export const EXPLAIN_SHARED_TERMS = 2;
+/**
+ * An anchor rated at least this many stars above its crowd score (movie_avg5)
+ * is explained as "You rated {title} higher than most viewers".
+ */
+export const CROWD_GAP_REASON_STARS = 1;
 export const REASON_COLD_START = "Popular and highly rated";

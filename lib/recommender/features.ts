@@ -90,6 +90,16 @@ export function bayesianRating(
   return (v / (v + minVotes)) * voteAverage + (minVotes / (v + minVotes)) * poolMean;
 }
 
+/** movie_avg5: the movie's Bayesian weighted rating on the 0–5 star scale. */
+export function crowdScore5(movie: RecMovie, poolMean: number): number {
+  return bayesianRating(movie.vote_average ?? poolMean, movie.vote_count ?? 0, poolMean) / 2;
+}
+
+/** offset = movie_avg5 − catalog_avg5: how far the movie's reputation sits from the pool average. */
+export function surpriseOffset(movie: RecMovie, poolMean: number): number {
+  return crowdScore5(movie, poolMean) - poolMean / 2;
+}
+
 /** Bayesian rating mapped QUALITY_FLOOR→0 and QUALITY_CEIL→1, clamped. */
 export function qualityScore(movie: RecMovie, poolMean: number): number {
   const wr = bayesianRating(movie.vote_average ?? poolMean, movie.vote_count ?? 0, poolMean);

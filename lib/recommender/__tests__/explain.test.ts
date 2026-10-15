@@ -6,6 +6,7 @@ import { buildProfile } from "@/lib/recommender/profile";
 import { effectiveWeights, type ScoredCandidate } from "@/lib/recommender/score";
 import {
   INTERSTELLAR,
+  FIXTURE_POOL_MEAN,
   NOW,
   THE_MARTIAN,
   TRANSFORMERS,
@@ -21,6 +22,7 @@ const profile = buildProfile(
   features,
   flatPercentile,
   NOW,
+  FIXTURE_POOL_MEAN,
 );
 
 function scored(

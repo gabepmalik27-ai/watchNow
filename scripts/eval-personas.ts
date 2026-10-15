@@ -14,6 +14,7 @@ import { fetchFeatureMovies, fetchPool } from "@/lib/recommendation-pool";
 import { rankForYou, type Recommendation } from "@/lib/recommender";
 import { FEATURES, FOR_YOU_WEIGHTS, MAX_PER_DIRECTOR } from "@/lib/recommender/constants";
 import {
+  crowdScore5,
   makePercentile,
   meanVoteAverage,
   bayesianRating,
@@ -139,19 +140,25 @@ function printDetail(
   target: Recommendation,
 ) {
   const pct = makePercentile(pool.map((m) => m.popularity));
-  const profile = buildProfile(rows, features, pct, NOW);
+  const C = meanVoteAverage(pool);
+  const profile = buildProfile(rows, features, pct, NOW, C);
   const rated = new Set(rows.map((r) => r.movie_id));
   const candidates = pool.filter((m) => !rated.has(m.id));
   const raws = candidates.map((m) => rawMatches(m, profile.affinity));
   const movie = features.get(target.movieId) as RecMovie;
   const traits = movieTraits(movie);
-  const C = meanVoteAverage(pool);
 
   console.log(`\n=== Worked example: ${persona.name} → ${movie.title} (id ${movie.id}) ===`);
   console.log(`mu = ${f4(profile.mu)}   ratedCount = ${profile.ratedCount}   pUser = ${f4(profile.pUser)}`);
-  console.log("weights w per rated movie:");
+  console.log(`catalog_avg5 = C / 2 = ${f4(C)} / 2 = ${f4(C / 2)}`);
+  console.log("weights per rated movie: w = clamp((rating − mu) − 0.5 × (movie_avg5 − catalog_avg5), ±1.5)");
   for (const [id, title, rating] of persona.ratings) {
-    console.log(`  ${title}: rating ${rating} → w ${f4(profile.weights.get(id) ?? 0)}`);
+    const m = features.get(id);
+    const avg5 = m ? crowdScore5(m, C) : null;
+    console.log(
+      `  ${title}: rating ${rating}, R ${m?.vote_average} v ${m?.vote_count} → movie_avg5 ${avg5 === null ? "?" : f4(avg5)}` +
+        ` offset ${avg5 === null ? "?" : f4(avg5 - C / 2)} → w ${f4(profile.weights.get(id) ?? 0)}`,
+    );
   }
   // Which rated movies carry a trait: A[t] = Σ share·w over them / (count + 2).
   const carriers = (type: "keyword" | "genre" | "director" | "cast", value: string) =>
