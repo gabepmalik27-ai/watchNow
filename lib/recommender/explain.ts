@@ -1,6 +1,10 @@
-import { EXPLAIN_SHARED_TERMS, REASON_COLD_START } from "@/lib/recommender/constants";
+import {
+  CROWD_GAP_REASON_STARS,
+  EXPLAIN_SHARED_TERMS,
+  REASON_COLD_START,
+} from "@/lib/recommender/constants";
 import { contextLabel, hasContextSelection, type RecommendContext } from "@/lib/recommender/context";
-import { movieTraits, type TasteProfile } from "@/lib/recommender/profile";
+import { movieTraits, type Anchor, type TasteProfile } from "@/lib/recommender/profile";
 import type { ScoredCandidate } from "@/lib/recommender/score";
 import type { RecMovie } from "@/types/movie";
 
@@ -16,6 +20,8 @@ function byAffinity(a: Term, b: Term): number {
  * 1. context dominates → "Under 90 min · Funny"
  * 2. cold start → "Popular and highly rated"
  * 3. best anchor (rated, w > 0) by positive shared keyword + genre affinity
+ *    → "You rated {title} higher than most viewers" when the user rated it
+ *      ≥ CROWD_GAP_REASON_STARS above its crowd score, otherwise
  *    → "Because you loved {title}: {a}, {b}"
  * 4. best liked genre → "Matches your taste for {genre}", else rule 2's text
  */
@@ -38,7 +44,7 @@ export function explain(
   const candidateKeywords = new Set(candidateTraits.keyword);
   const candidateGenres = new Set(candidateTraits.genre);
 
-  let best: { title: string; overlap: number; terms: Term[] } | null = null;
+  let best: { anchor: Anchor; title: string; overlap: number; terms: Term[] } | null = null;
   // Anchors are already sorted by w desc, then id asc, so strict ">" keeps
   // the tie-break rule (larger w, then lower id).
   for (const anchor of profile.anchors) {
@@ -58,6 +64,7 @@ export function explain(
     const overlap = [...keywords, ...genres].reduce((total, term) => total + term.affinity, 0);
     if (overlap > 0 && (best === null || overlap > best.overlap)) {
       best = {
+        anchor,
         title: anchorMovie.title,
         overlap,
         terms: [...keywords, ...genres].slice(0, EXPLAIN_SHARED_TERMS),
@@ -65,6 +72,10 @@ export function explain(
     }
   }
   if (best) {
+    const { rating, crowdScore5 } = best.anchor;
+    if (crowdScore5 !== null && rating - crowdScore5 >= CROWD_GAP_REASON_STARS) {
+      return `You rated ${best.title} higher than most viewers`;
+    }
     return `Because you loved ${best.title}: ${best.terms.map((t) => t.name).join(", ")}`;
   }
 
