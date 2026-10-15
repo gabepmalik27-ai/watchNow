@@ -13,6 +13,12 @@ import {
 import { Toast } from "@/components/ui/Toast";
 import { useAuth } from "@/lib/auth";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import {
+  applyRating,
+  applyToggleWatched,
+  applyToggleWatchlist,
+  emptyUserMovie,
+} from "@/lib/user-movie-rules";
 import type { UserMovie } from "@/types/movie";
 
 export type LastRating = {
@@ -53,32 +59,13 @@ const LOAD_ERROR = "Couldn't load your saved movies. Reload the page to try agai
 
 const UserStateContext = createContext<UserStateContextValue | null>(null);
 
-function defaultUserMovie(movieId: number): UserMovie {
-  return {
-    movie_id: movieId,
-    watched: false,
-    rating: null,
-    not_interested: false,
-    on_watchlist: false,
-  };
-}
-
 /**
- * Moves the touched movie to the end of the array. Array order
- * (most-recently-touched last) is what For You and Rate sort by; on load it
- * is rebuilt from updated_at.
+ * Puts `row` in place of the movie's current row and moves it to the end of
+ * the array. Array order (most-recently-touched last) is what For You and
+ * Rate sort by; on load it is rebuilt from updated_at.
  */
-function upsert(
-  movies: UserMovie[],
-  movieId: number,
-  patch: Partial<Omit<UserMovie, "movie_id">>,
-): UserMovie[] {
-  const existing = movies.find((m) => m.movie_id === movieId);
-  const rest = movies.filter((m) => m.movie_id !== movieId);
-  const updated = existing
-    ? { ...existing, ...patch }
-    : { ...defaultUserMovie(movieId), ...patch };
-  return [...rest, updated];
+function upsert(movies: UserMovie[], row: UserMovie): UserMovie[] {
+  return [...movies.filter((m) => m.movie_id !== row.movie_id), row];
 }
 
 /** Replaces (or removes, when `row` is undefined) one movie, keeping its position. */
@@ -268,7 +255,7 @@ export function UserStateProvider({ children }: { children: ReactNode }) {
       };
       tokenRef.current += 1;
       setLastRating({ movieId, rating, token: tokenRef.current });
-      apply(movieId, upsert(current, movieId, { rating, watched: true, on_watchlist: false }));
+      apply(movieId, upsert(current, applyRating(index === -1 ? undefined : current[index], movieId, rating)));
     },
     [apply],
   );
@@ -295,15 +282,7 @@ export function UserStateProvider({ children }: { children: ReactNode }) {
       if (!userIdRef.current) return;
       const current = userMoviesRef.current;
       const existing = current.find((m) => m.movie_id === movieId);
-      const nextWatched = existing ? !existing.watched : true;
-      apply(
-        movieId,
-        upsert(
-          current,
-          movieId,
-          nextWatched ? { watched: true, on_watchlist: false } : { watched: false },
-        ),
-      );
+      apply(movieId, upsert(current, applyToggleWatched(existing, movieId)));
     },
     [apply],
   );
@@ -312,8 +291,8 @@ export function UserStateProvider({ children }: { children: ReactNode }) {
     (movieId: number) => {
       if (!userIdRef.current) return;
       const current = userMoviesRef.current;
-      const existing = current.find((m) => m.movie_id === movieId);
-      apply(movieId, upsert(current, movieId, { on_watchlist: !existing?.on_watchlist }));
+      const next = applyToggleWatchlist(current.find((m) => m.movie_id === movieId), movieId);
+      if (next) apply(movieId, upsert(current, next));
     },
     [apply],
   );
@@ -321,7 +300,9 @@ export function UserStateProvider({ children }: { children: ReactNode }) {
   const setNotInterested = useCallback(
     (movieId: number) => {
       if (!userIdRef.current) return;
-      apply(movieId, upsert(userMoviesRef.current, movieId, { not_interested: true }));
+      const current = userMoviesRef.current;
+      const existing = current.find((m) => m.movie_id === movieId) ?? emptyUserMovie(movieId);
+      apply(movieId, upsert(current, { ...existing, not_interested: true }));
     },
     [apply],
   );
