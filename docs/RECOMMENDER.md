@@ -10,7 +10,7 @@ No LLM is involved, and no other user's data is read. The same inputs always pro
   - For You (server-rendered)
   - Home's "Recommended for you" row (`GET /api/recommend`)
   - Recommend (`POST /api/recommend`)
-- **Check it:** `npm test` runs the unit tests. `npm run eval` runs three personas against the live catalog. `npm run eval -- --detail=<id>` prints every intermediate number for one result.
+- **Check it:** `npm test` runs the unit tests. `npm run eval` runs four personas against the live catalog. `npm run eval -- --detail=<id>` prints every intermediate number for one result.
 
 ---
 
@@ -22,18 +22,23 @@ No LLM is involved, and no other user's data is read. The same inputs always pro
    `mu = (sum of ratings + 7) / (number of ratings + 2)`.
    A brand-new user's baseline is 3.5. A user who rated two movies 5★ has a baseline of 4.25, not 5.
 2. **Turn each touched movie into a weight `w`.** Rules are checked in this order, and the first match wins:
-   - **Rated:** `rating − mu`. Above your baseline is positive, below is negative.
+   - **Rated:** `(rating − mu) − 0.5 × offset` (see the next step). Above your baseline is positive, below is negative.
    - **Not interested:** −1.0
    - **Watched but not rated:** +0.3
    - **On the watchlist:** +0.5
-3. **Fade old signals.** Multiply `w` by `0.5^(days since updated_at / 180)`. Something you did six months ago counts half as much.
-4. **Cap any single movie's influence.** Clamp `w` to the range −1.5 … +1.5. No single movie can outweigh several others. Without this, a generous rater's rare 1★ (often −3 or worse against their baseline) would erase a whole genre.
-5. **Score every trait.** For each keyword, genre, director and cast member that appears in your movies:
+3. **Adjust ratings for surprise.** A rating that agrees with a movie's reputation says less about you than one that doesn't. Loving The Godfather is what nearly everyone does; loving a poorly reviewed cult film, or shrugging at a classic, is distinctive.
+   - A movie's **reputation** is its crowd score on the 5-star scale minus the catalog's average: `movie_avg5 − catalog_avg5`. Here `movie_avg5` is the same vote-weighted rating used for quality, divided by 2, and `catalog_avg5` is the pool's average divided by 2.
+   - The **offset** is that reputation *relative to the average reputation of everything you rated*. If all your favourites are acclaimed, none of them is penalized for it; only the ones more (or less) acclaimed than your usual are.
+   - Rated weight = `(rating − mu) − 0.5 × offset`. Watched, watchlist and not-interested weights don't change.
+   - This only reweights your own ratings. It never pushes a candidate you wouldn't like; finding films you might not have heard of stays the job of rarity and the Discovery slider.
+4. **Fade old signals.** Multiply `w` by `0.5^(days since updated_at / 180)`. Something you did six months ago counts half as much.
+5. **Cap any single movie's influence.** Clamp `w` to the range −1.5 … +1.5. No single movie can outweigh several others. Without this, a generous rater's rare 1★ (often −3 or worse against their baseline) would erase a whole genre.
+6. **Score every trait.** For each keyword, genre, director and cast member that appears in your movies:
    `A[trait] = (sum of w over your movies with that trait) / (number of those movies + 2)`.
    - The `+ 2` keeps a trait seen once from looking as certain as one seen ten times.
    - Cast members get half the movie's weight, and only the first 3 billed count.
    - Traits you've never touched score 0.
-6. **Measure how mainstream you are.** `pUser` is the average popularity percentile (0 = least popular, 1 = most popular in the pool) of the movies you weighted positively. It's 0.5 if there are none.
+7. **Measure how mainstream you are.** `pUser` is the average popularity percentile (0 = least popular, 1 = most popular in the pool) of the movies you weighted positively. It's 0.5 if there are none.
 
 ### Step 2: Score each candidate
 
@@ -91,7 +96,9 @@ The first rule that applies wins:
 
 1. **Context outweighs taste.** If context contributed at least as much as keyword + genre + people combined, show the chosen context, e.g. "Under 90 min · Funny".
 2. **Cold start:** "Popular and highly rated".
-3. **Best anchor.** Among the movies you rated above your baseline, find the one sharing the most positively-scored keywords and genres with the candidate. Show "Because you loved {title}: {its two best shared keywords}", padded with shared genres if needed.
+3. **Best anchor.** Among the movies you rated above your baseline, find the one sharing the most positively-scored keywords and genres with the candidate.
+   - If you rated it at least 1 star above its crowd score **and** its reputation is below the catalog average (an under-appreciated film you loved), show "You rated {title} higher than most viewers".
+   - Otherwise show "Because you loved {title}: {its two best shared keywords}", padded with shared genres if needed.
 4. **Fallback:** "Matches your taste for {your best-liked genre on this movie}", or the cold-start text if there is none.
 
 Every result also carries its full score breakdown. Open Recommend with `?debug=1` to see it under each result.
@@ -107,6 +114,8 @@ Every result also carries its full score breakdown. Open Recommend with `?debug=
 | `WEIGHT_WATCHED_UNRATED` | +0.3 | Choosing to watch something is a mild positive signal, weaker than a rating a full star above the baseline (+1). |
 | `WEIGHT_WATCHLIST` | +0.5 | Actively saving a movie expresses interest, but it hasn't been confirmed by watching. It's stronger than a passive "watched" yet below a clearly liked rating. |
 | `WEIGHT_NOT_INTERESTED` | −1.0 | An explicit "no" is as strong as rating a movie one star below your baseline. |
+| `SURPRISE_BETA` | 0.5 | How much a movie's relative reputation moves a rating's weight. The offsets are small: reputations in the catalog run from −1.43 to +0.82 stars, so at 0.5 the surprise term is rarely more than ±0.4, while `rating − mu` spans several stars. That's enough to rank a distinctive love above a conventional one without overriding what the user said. Loved classics keep most of their weight ("0.5 keeps loved classics meaningful"), and with offsets measured against the user's own average, a fan of acclaimed films loses nothing at all. At 1.0 the surprise term could flip a 4★ into a negative. |
+| `CROWD_GAP_REASON_STARS` | 1 | "Higher than most viewers" should mean a real disagreement: a full star above the crowd. It also requires a below-average reputation. Without that, any 5★ on a film averaging 8.0/10 or less qualified, which was most 5★ ratings (7 of the comedy persona's 10 reasons) and replaced the more specific "Because you loved". |
 | `WEIGHT_CLIP` | 1.5 | Weights are clamped to ±1.5 after decay. A full star above the baseline (+1) passes untouched, and so do the fixed signals (±1, +0.5, +0.3). Only outliers are cut: a 1★ from someone whose baseline is 4+ would otherwise be −3 or worse and cancel three or more loved movies sharing a genre. With the clamp, the eval's sci-fi persona keeps a positive Science Fiction affinity (0.22 instead of 0.09). |
 | `RECENCY_HALF_LIFE_DAYS` | 180 | Taste drifts slowly. Six months keeps last year's favourites relevant while letting this month's ratings lead. |
 | `AFFINITY_PSEUDO_COUNT` | 2 | The same idea as the mean prior: a trait seen in one movie gets 1/3 of that movie's weight, not all of it, so single coincidences don't dominate. |
@@ -139,48 +148,57 @@ Interstellar 5, Arrival 5, Blade Runner 2049 4.5, Inception 4.5, 2001: A Space O
 ### Step 1: Profile
 
 - `mu = (41.5 + 7) / (10 + 2) = 48.5 / 12 = 4.0417`
-- **Weights** (`rating − mu`):
+- `catalog_avg5 = 7.0042 / 2 = 3.5021`
+- **Reputations.** `movie_avg5` is the vote-weighted rating ÷ 2, and reputation = movie_avg5 − 3.5021. Their mean over the 10 rated movies is 2.9341 / 10 = **0.2934**: this user mostly rates well-regarded films.
+- **Weights:** `w = clamp((rating − mu) − 0.5 × (reputation − 0.2934), ±1.5)`.
 
-  | Rating | w | Movies |
-  |---|---|---|
-  | 5 | **0.9583** | Interstellar, Arrival, 2001 |
-  | 4.5 | **0.4583** | Blade Runner 2049, Inception, Ex Machina |
-  | 4 | **−0.0417** | Contact, Annihilation, The Martian |
-  | 1 | 1 − 4.0417 = −3.0417, **clamped to −1.5000** | Transformers |
+  | Movie | Rating | movie_avg5 | Reputation | Offset | rating − mu | w |
+  |---|---|---|---|---|---|---|
+  | Interstellar | 5 | 4.2324 | 0.7303 | 0.4369 | 0.9583 | 0.9583 − 0.2185 = **0.7399** |
+  | Arrival | 5 | 3.7858 | 0.2837 | −0.0097 | 0.9583 | **0.9632** |
+  | Blade Runner 2049 | 4.5 | 3.7823 | 0.2802 | −0.0132 | 0.4583 | **0.4650** |
+  | Inception | 4.5 | 4.1831 | 0.6810 | 0.3876 | 0.4583 | **0.2645** |
+  | 2001: A Space Odyssey | 5 | 3.9645 | 0.4624 | 0.1690 | 0.9583 | **0.8738** |
+  | Ex Machina | 4.5 | 3.7810 | 0.2789 | −0.0145 | 0.4583 | **0.4656** |
+  | Contact | 4 | 3.7101 | 0.2080 | −0.0854 | −0.0417 | **0.0010** |
+  | Annihilation | 4 | 3.2736 | −0.2285 | −0.5219 | −0.0417 | −0.0417 + 0.2610 = **0.2193** |
+  | The Martian | 4 | 3.8348 | 0.3327 | 0.0393 | −0.0417 | **−0.0613** |
+  | Transformers | 1 | 3.4075 | −0.0946 | −0.3880 | −3.0417 | −2.8477, **clamped to −1.5000** |
 
-  This user rates generously, so a 4★ is slightly below their baseline and counts as a faint negative. Only Transformers is beyond ±1.5, so it is the only weight the clamp changes.
+  - Inception and Interstellar are this user's most acclaimed picks, so their weights shrink the most.
+  - Annihilation is a weaker-reviewed film the user still gave 4★, so it turns from a faint negative into a positive.
+  - Transformers is the only weight beyond ±1.5, so it's the only one the clamp changes.
 - **Gravity's keywords** (`A = Σw / (count + 2)`):
 
   | Keyword | Carried by | A |
   |---|---|---|
-  | astronaut | Interstellar, 2001, The Martian | (0.9583 + 0.9583 − 0.0417) / 5 = **0.3750** |
-  | space station | Interstellar, 2001 | 1.9167 / 4 = **0.4792** |
-  | space | Interstellar, The Martian | 0.9167 / 4 = **0.2292** |
-  | space mission | 2001 | 0.9583 / 3 = **0.3194** |
-  | hopeful | Arrival | 0.9583 / 3 = **0.3194** |
-  | loss | Arrival | 0.9583 / 3 = **0.3194** |
+  | astronaut | Interstellar, 2001, The Martian | (0.7399 + 0.8738 − 0.0613) / 5 = **0.3105** |
+  | space station | Interstellar, 2001 | 1.6137 / 4 = **0.4034** |
+  | space | Interstellar, The Martian | 0.6786 / 4 = **0.1696** |
+  | space mission | 2001 | 0.8738 / 3 = **0.2913** |
+  | hopeful | Arrival | 0.9632 / 3 = **0.3211** |
+  | loss | Arrival | 0.9632 / 3 = **0.3211** |
   | reflective | none | **0** |
   | trapped in space | none | **0** |
 
 - **Gravity's genres:**
   - Drama is carried by Interstellar, Arrival, BR2049, Ex Machina, Contact and The Martian:
-    `(2·0.9583 + 2·0.4583 + 2·(−0.0417)) / (6 + 2) = 2.75 / 8 = 0.3438`.
+    `(0.7399 + 0.9632 + 0.4650 + 0.4656 + 0.0010 − 0.0613) / (6 + 2) = 2.5734 / 8 = 0.3217`.
   - Science Fiction is carried by all 10, Transformers included:
-    `(3·0.9583 + 3·0.4583 + 3·(−0.0417) − 1.5) / 12 = 2.625 / 12 = 0.2188`.
-    Without the clamp the −3.0417 would pull it down to 0.0903.
+    `(sum of all ten weights) / 12 = 2.4310 / 12 = 0.2026`.
   - Thriller: no rated movie, **0**.
 - **People:** Alfonso Cuarón, Sandra Bullock, George Clooney and Ed Harris appear in none of the rated movies, so all are 0.
-- **`pUser = 0.8924`.** The persona's loved movies are mostly very popular ones.
+- **`pUser = 0.8087`.** The persona's positively weighted movies are mostly very popular ones. Annihilation and Contact now count as positive too, which lowers it from 0.89.
 
 ### Step 2: Features
 
 | Feature | Raw | Pool min / max | Feature value |
 |---|---|---|---|
-| keyword | (0.3750 + 0.3194 + 0.3194 + 0 + 0.2292 + 0.3194 + 0.4792 + 0) / √8 = 2.0417 / 2.8284 = **0.7218** | −0.5938 / 0.7218 | Gravity *is* the max, so **1.0000** |
-| genre | (0.3438 + 0.2188 + 0) / 3 = **0.1875** | −0.1372 / 0.3594 | (0.1875 + 0.1372) / (0.3594 + 0.1372) = 0.3247 / 0.4966 = **0.6538** |
-| people | 0 + 0 = **0** | −0.6667 / 0.4074 | 0.6667 / 1.0741 = **0.6207** |
+| keyword | (0.3105 + 0.3211 + 0.3211 + 0 + 0.1696 + 0.2913 + 0.4034 + 0) / √8 = 1.8170 / 2.8284 = **0.6424** | −0.5944 / 0.6424 | Gravity *is* the max, so **1.0000** |
+| genre | (0.3217 + 0.2026 + 0) / 3 = **0.1748** | −0.1544 / 0.3446 | (0.1748 + 0.1544) / (0.3446 + 0.1544) = 0.3292 / 0.4990 = **0.6596** |
+| people | 0 + 0 = **0** | −0.6667 / 0.3829 | 0.6667 / 1.0496 = **0.6352** |
 | quality | R = 7.2, v = 16 736, C = 7.0042: WR = (16736 / 17736)·7.2 + (1000 / 17736)·7.0042 = 6.7940 + 0.3949 = **7.1890** | maps 5 → 0, 9 → 1 | (7.1890 − 5) / 4 = **0.5472** |
-| rarity | Gravity's popularity percentile = 0.6093; target = pUser = 0.8924 | — | 1 − 0.2831 = **0.7169** |
+| rarity | Gravity's popularity percentile = 0.6093; target = pUser = 0.8087 | — | 1 − 0.1994 = **0.8007** |
 
 ### Score
 
@@ -189,17 +207,19 @@ Not cold start (10 ratings) and no context, so the For You weights apply unchang
 | Feature | Weight × value | Contribution |
 |---|---|---|
 | keyword | 0.35 × 1.0000 | 0.3500 |
-| genre | 0.25 × 0.6538 | 0.1635 |
-| people | 0.15 × 0.6207 | 0.0931 |
+| genre | 0.25 × 0.6596 | 0.1649 |
+| people | 0.15 × 0.6352 | 0.0953 |
 | quality | 0.15 × 0.5472 | 0.0821 |
-| rarity | 0.10 × 0.7169 | 0.0717 |
-| **Score** | | **0.7603** |
+| rarity | 0.10 × 0.8007 | 0.0801 |
+| **Score** | | **0.7723** (0.7724 from the rounded contributions) |
 
 Gravity is the persona's #1 result.
 
 ### Reason
 
-Among the anchors (movies rated above the baseline), Interstellar has the largest overlap with Gravity: space station 0.4792 + astronaut 0.3750 + space 0.2292 + Drama 0.3438 + Science Fiction 0.2188 = 1.6459. Next is 2001, at 1.3923, with no Drama. Its two best shared keywords are space station (0.4792) and astronaut (0.3750).
+Among the anchors (movies with w > 0 that were rated), Interstellar has the largest overlap with Gravity: space station 0.4034 + astronaut 0.3105 + space 0.1696 + Drama 0.3217 + Science Fiction 0.2026 = 1.4078. Next is 2001 at 1.2078 (no Drama), then Arrival at 1.1665.
+
+Interstellar's reputation is +0.73, well above average, so the crowd-gap wording doesn't apply. Its two best shared keywords are space station (0.4034) and astronaut (0.3105).
 → **"Because you loved Interstellar: space station, astronaut"**
 
 ---
@@ -207,6 +227,13 @@ Among the anchors (movies rated above the baseline), Interstellar has the larges
 ## 4. Behaviours worth knowing
 
 - **Outliers are capped, not ignored.** Before `WEIGHT_CLIP`, the sci-fi persona's single Transformers 1★ (w −3.04) cut Science Fiction to 0.09. Its top 10 drifted to acclaimed dramas: **3/10 sci-fi**. With the clamp, the 1★ still counts (−1.5, the strongest negative allowed) but can't outvote the loved films. Science Fiction is 0.22 and the top 10 is **7/10 sci-fi**, led by Gravity. The remaining three (Dead Poets Society, 12 Angry Men, One Flew Over the Cuckoo's Nest) come from Drama, which six of the loved films share.
+- **Surprise weights reward distinctive opinions, measured against the user's own taste.** The first version measured reputation against the catalog only. That shrank every love of a fan of acclaimed films: Interstellar fell from +0.96 to +0.59, the 1★ outlier dominated again, and the sci-fi persona dropped from 7/10 to 4/10 sci-fi. Measuring against the user's own average keeps that persona at 7/10, while the contrarian's cult loves still count fully. In the eval, each persona's top 10 shares 9 of 10 titles with the pre-surprise version:
+  - Sci-fi: 12 Angry Men → The Passion of the Christ, a weak Drama-driven pick at #9.
+  - Comedy: The Good Dinosaur → Paddington.
+  - Horror: Nightcrawler → Insidious: Chapter 2.
+  - Contrarian: Demon Slayer → Guardians of the Galaxy.
+
+  "You rated … higher than most viewers" appears only for the contrarian, on all 10 of its results: Hackers, Mandy, Jupiter Ascending, Speed Racer.
 - **Features are relative to the candidate set.** Min-max rescaling means a feature value says "how this compares with the other candidates", not an absolute strength. When a few movies score very negatively (sequels to a hated movie), an unrelated movie sits around 0.7 rather than 0. That's why Gravity's people feature is 0.62 even though nothing matched.
 - **A generous rater's 4★ is slightly negative,** because it is below their own baseline. Ratings are read relative to the user, not the scale.
 - **"Niche" means niche among the 2000 most-voted movies.** Surprise Me finds lesser-known films within well-known ones, not obscurities.
@@ -215,8 +242,9 @@ Among the anchors (movies rated above the baseline), Interstellar has the larges
 
 ## 5. Tests and evaluation
 
-- **`npm test`** (vitest): 51 tests in `lib/recommender/__tests__/`. They cover:
+- **`npm test`** (vitest): 61 recommender tests in `lib/recommender/__tests__/`, plus the For You chart stats. They cover:
   - mean shrinkage, weight rules, recency and the ±1.5 weight clamp
+  - surprise weights: the spec values (+0.475, +1.15, −1.55 before the clamp, −1.5 after), decay before the clamp, offsets relative to the user's own ratings, and the crowd-gap reason
   - the Interstellar/Martian/Transformers case
   - 8 sci-fi films at 5★ plus a 1★ keep Science Fiction clearly positive
   - cast handling and the popularity percentile
@@ -225,4 +253,8 @@ Among the anchors (movies rated above the baseline), Interstellar has the larges
   - the hard runtime filter, context matching and the director cap
   - explanations
   - determinism: shuffled inputs give an identical output
-- **`npm run eval`:** three personas (sci-fi, comedy/animation, horror/thriller), each with 10 ratings on real catalog ids. It prints each top 10 with breakdowns and reasons and fails if any two lists share more than 2 titles. As of 2026-10-08 the overlap is 0 for every pair.
+- **`npm run eval`:** four personas, each with 10–12 ratings on real catalog ids:
+  - sci-fi, comedy/animation and horror/thriller
+  - a contrarian who rates six acclaimed classics 3★ and six cult films 5★
+
+  It prints each top 10 with breakdowns, reasons, mean popularity and mean quality, and fails if any two lists share more than 2 titles. As of 2026-10-15 the overlap is 0 for every pair. `--json=<path>` writes the lists for before/after comparisons.
