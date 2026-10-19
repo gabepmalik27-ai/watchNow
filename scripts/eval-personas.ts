@@ -21,7 +21,7 @@ import {
   MAX_PER_DIRECTOR,
 } from "@/lib/recommender/constants";
 import {
-  crowdScore5,
+  crowdScore,
   makePercentile,
   meanVoteAverage,
   bayesianRating,
@@ -55,46 +55,46 @@ const PERSONAS: Persona[] = [
   {
     name: "Cerebral sci-fi fan",
     ratings: [
-      [157336, "Interstellar", 5],
-      [329865, "Arrival", 5],
-      [335984, "Blade Runner 2049", 4.5],
-      [27205, "Inception", 4.5],
-      [62, "2001: A Space Odyssey", 5],
-      [264660, "Ex Machina", 4.5],
-      [686, "Contact", 4],
-      [300668, "Annihilation", 4],
-      [286217, "The Martian", 4],
-      [1858, "Transformers", 1],
+      [157336, "Interstellar", 10],
+      [329865, "Arrival", 10],
+      [335984, "Blade Runner 2049", 9],
+      [27205, "Inception", 9],
+      [62, "2001: A Space Odyssey", 10],
+      [264660, "Ex Machina", 9],
+      [686, "Contact", 8],
+      [300668, "Annihilation", 8],
+      [286217, "The Martian", 8],
+      [1858, "Transformers", 2],
     ],
   },
   {
     name: "Comedy / animation fan",
     ratings: [
-      [862, "Toy Story", 5],
-      [14160, "Up", 5],
-      [150540, "Inside Out", 4.5],
-      [354912, "Coco", 5],
-      [269149, "Zootopia", 4.5],
-      [346648, "Paddington 2", 5],
-      [8363, "Superbad", 4],
-      [120467, "The Grand Budapest Hotel", 4.5],
-      [808, "Shrek", 4],
-      [176, "Saw", 1],
+      [862, "Toy Story", 10],
+      [14160, "Up", 10],
+      [150540, "Inside Out", 9],
+      [354912, "Coco", 10],
+      [269149, "Zootopia", 9],
+      [346648, "Paddington 2", 10],
+      [8363, "Superbad", 8],
+      [120467, "The Grand Budapest Hotel", 9],
+      [808, "Shrek", 8],
+      [176, "Saw", 2],
     ],
   },
   {
     name: "Horror / thriller fan",
     ratings: [
-      [493922, "Hereditary", 5],
-      [419430, "Get Out", 4.5],
-      [138843, "The Conjuring", 4.5],
-      [694, "The Shining", 5],
-      [807, "Se7en", 5],
-      [274, "The Silence of the Lambs", 5],
-      [447332, "A Quiet Place", 4],
-      [530385, "Midsommar", 4.5],
-      [146233, "Prisoners", 4.5],
-      [109445, "Frozen", 1],
+      [493922, "Hereditary", 10],
+      [419430, "Get Out", 9],
+      [138843, "The Conjuring", 9],
+      [694, "The Shining", 10],
+      [807, "Se7en", 10],
+      [274, "The Silence of the Lambs", 10],
+      [447332, "A Quiet Place", 8],
+      [530385, "Midsommar", 9],
+      [146233, "Prisoners", 9],
+      [109445, "Frozen", 2],
     ],
   },
   {
@@ -102,18 +102,18 @@ const PERSONAS: Persona[] = [
     // case where a rating's distance from the movie's reputation matters most.
     name: "Contrarian",
     ratings: [
-      [238, "The Godfather", 3],
-      [278, "The Shawshank Redemption", 3],
-      [424, "Schindler's List", 3],
-      [13, "Forrest Gump", 3],
-      [289, "Casablanca", 3],
-      [15, "Citizen Kane", 3],
-      [76757, "Jupiter Ascending", 5],
-      [19994, "Jennifer's Body", 5],
-      [23629, "Sucker Punch", 5],
-      [460885, "Mandy", 5],
-      [7459, "Speed Racer", 5],
-      [10428, "Hackers", 5],
+      [238, "The Godfather", 6],
+      [278, "The Shawshank Redemption", 6],
+      [424, "Schindler's List", 6],
+      [13, "Forrest Gump", 6],
+      [289, "Casablanca", 6],
+      [15, "Citizen Kane", 6],
+      [76757, "Jupiter Ascending", 10],
+      [19994, "Jennifer's Body", 10],
+      [23629, "Sucker Punch", 10],
+      [460885, "Mandy", 10],
+      [7459, "Speed Racer", 10],
+      [10428, "Hackers", 10],
     ],
   },
   {
@@ -122,16 +122,16 @@ const PERSONAS: Persona[] = [
     name: "Comedy 30 / Crime 10",
     gated: false,
     ratings: [
-      [18785, "The Hangover", 4],
-      [8363, "Superbad", 4.5],
-      [137, "Groundhog Day", 4.5],
-      [747, "Shaun of the Dead", 4.5],
-      [22538, "Scott Pilgrim vs. the World", 4],
-      [10625, "Mean Girls", 4],
-      [7446, "Tropic Thunder", 4],
-      [8467, "Dumb and Dumber", 3.5],
-      [1584, "The School of Rock", 4],
-      [762, "Monty Python and the Holy Grail", 4.5],
+      [18785, "The Hangover", 8],
+      [8363, "Superbad", 9],
+      [137, "Groundhog Day", 9],
+      [747, "Shaun of the Dead", 9],
+      [22538, "Scott Pilgrim vs. the World", 8],
+      [10625, "Mean Girls", 8],
+      [7446, "Tropic Thunder", 8],
+      [8467, "Dumb and Dumber", 7],
+      [1584, "The School of Rock", 8],
+      [762, "Monty Python and the Holy Grail", 9],
       [6957, "The 40 Year-Old Virgin", null],
       [195589, "Neighbors", null],
       [37735, "Easy A", null],
@@ -152,10 +152,10 @@ const PERSONAS: Persona[] = [
       [771, "Home Alone", null],
       [2108, "The Breakfast Club", null],
       [773, "Little Miss Sunshine", null],
-      [238, "The Godfather", 4.5],
-      [769, "GoodFellas", 4.5],
-      [1422, "The Departed", 4],
-      [500, "Reservoir Dogs", 4],
+      [238, "The Godfather", 9],
+      [769, "GoodFellas", 9],
+      [1422, "The Departed", 8],
+      [500, "Reservoir Dogs", 8],
       [103, "Taxi Driver", null],
       [6977, "No Country for Old Men", null],
       [640, "Catch Me If You Can", null],
@@ -171,30 +171,30 @@ const PERSONAS: Persona[] = [
     gated: false,
     pickyReport: true,
     ratings: [
-      [120467, "The Grand Budapest Hotel", 5],
-      [83666, "Moonrise Kingdom", 5],
-      [747, "Shaun of the Dead", 4.5],
-      [22538, "Scott Pilgrim vs. the World", 4.5],
-      [773, "Little Miss Sunshine", 4.5],
-      [254320, "The Lobster", 4],
-      [153, "Lost in Translation", 4],
-      [7326, "Juno", 4],
-      [391713, "Lady Bird", 4.5],
-      [515001, "Jojo Rabbit", 4.5],
-      [935, "Dr. Strangelove or: How I Learned to Stop Worrying and Love the Bomb", 5],
-      [762, "Monty Python and the Holy Grail", 4.5],
-      [38365, "Grown Ups", 1],
-      [9339, "Click", 1.5],
-      [1824, "50 First Dates", 2],
-      [257344, "Pixels", 1],
-      [214756, "Ted 2", 1.5],
-      [72105, "Ted", 2],
-      [4247, "Scary Movie", 1],
-      [2105, "American Pie", 1.5],
-      [57214, "Project X", 1],
-      [109439, "The Hangover Part III", 1],
-      [45243, "The Hangover Part II", 1.5],
-      [302699, "Central Intelligence", 2],
+      [120467, "The Grand Budapest Hotel", 10],
+      [83666, "Moonrise Kingdom", 10],
+      [747, "Shaun of the Dead", 9],
+      [22538, "Scott Pilgrim vs. the World", 9],
+      [773, "Little Miss Sunshine", 9],
+      [254320, "The Lobster", 8],
+      [153, "Lost in Translation", 8],
+      [7326, "Juno", 8],
+      [391713, "Lady Bird", 9],
+      [515001, "Jojo Rabbit", 9],
+      [935, "Dr. Strangelove or: How I Learned to Stop Worrying and Love the Bomb", 10],
+      [762, "Monty Python and the Holy Grail", 9],
+      [38365, "Grown Ups", 2],
+      [9339, "Click", 3],
+      [1824, "50 First Dates", 4],
+      [257344, "Pixels", 2],
+      [214756, "Ted 2", 3],
+      [72105, "Ted", 4],
+      [4247, "Scary Movie", 2],
+      [2105, "American Pie", 3],
+      [57214, "Project X", 2],
+      [109439, "The Hangover Part III", 2],
+      [45243, "The Hangover Part II", 3],
+      [302699, "Central Intelligence", 4],
     ],
   },
 ];
@@ -224,8 +224,8 @@ function printPickyReport(persona: Persona, results: Recommendation[], features:
     const m = features.get(id);
     return m ? [movieTraits(m)] : [];
   });
-  const liked = traitsOf(persona.ratings.filter(([, , r]) => r !== null && r >= 4).map(([id]) => id));
-  const panned = traitsOf(persona.ratings.filter(([, , r]) => r !== null && r <= 2).map(([id]) => id));
+  const liked = traitsOf(persona.ratings.filter(([, , r]) => r !== null && r >= 8).map(([id]) => id));
+  const panned = traitsOf(persona.ratings.filter(([, , r]) => r !== null && r <= 4).map(([id]) => id));
   const set = (list: ReturnType<typeof traitsOf>, key: "keyword" | "director" | "cast") =>
     new Set(list.flatMap((t) => t[key]));
   const sets = {
@@ -299,26 +299,26 @@ function printDetail(
   console.log(`mu = ${f4(profile.mu)}   ratedCount = ${profile.ratedCount}   pUser = ${f4(profile.pUser)}`);
   const reputationOf = (id: number) => {
     const m = features.get(id);
-    return m ? crowdScore5(m, C) - C / 2 : null;
+    return m ? crowdScore(m, C) - C : null;
   };
   const known = persona.ratings.flatMap(([id]) => {
     const r = reputationOf(id);
     return r === null ? [] : [r];
   });
   const meanReputation = known.reduce((a, b) => a + b, 0) / Math.max(1, known.length);
-  console.log(`catalog_avg5 = C / 2 = ${f4(C)} / 2 = ${f4(C / 2)}`);
+  console.log(`catalog_avg = C = ${f4(C)}`);
   console.log(`mean reputation of rated movies = ${f4(meanReputation)}`);
   console.log(
-    "weights per rated movie: reputation = movie_avg5 − catalog_avg5; offset = reputation − mean;" +
-      " w = clamp((rating − mu) − 0.5 × offset, ±1.5)",
+    "weights per rated movie: reputation = movie_avg − catalog_avg; offset = reputation − mean;" +
+      " w = clamp((rating − mu) − 0.5 × offset, ±3)",
   );
   for (const [id, title, rating] of persona.ratings) {
     if (rating === null) continue;
     const m = features.get(id);
-    const avg5 = m ? crowdScore5(m, C) : null;
+    const avg = m ? crowdScore(m, C) : null;
     const reputation = reputationOf(id);
     console.log(
-      `  ${title}: rating ${rating}, R ${m?.vote_average} v ${m?.vote_count} → movie_avg5 ${avg5 === null ? "?" : f4(avg5)}` +
+      `  ${title}: rating ${rating}, R ${m?.vote_average} v ${m?.vote_count} → movie_avg ${avg === null ? "?" : f4(avg)}` +
         ` reputation ${reputation === null ? "?" : f4(reputation)}` +
         ` offset ${reputation === null ? "0" : f4(reputation - meanReputation)} → w ${f4(profile.weights.get(id) ?? 0)}`,
     );

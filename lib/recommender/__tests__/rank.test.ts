@@ -28,7 +28,7 @@ const pool = [
     }),
   ),
 ];
-const sciFiRows = [rated(INTERSTELLAR.id, 5), rated(THE_MARTIAN.id, 4.5), rated(TRANSFORMERS.id, 1)];
+const sciFiRows = [rated(INTERSTELLAR.id, 10), rated(THE_MARTIAN.id, 9), rated(TRANSFORMERS.id, 2)];
 const base = { pool, userFeatures: [], now: NOW };
 
 describe("rankForYou", () => {
@@ -56,7 +56,7 @@ describe("rankForYou", () => {
   });
 
   it("is cold start below 3 ratings, with only quality and rarity weighted", () => {
-    const { results, coldStart } = rankForYou({ ...base, rows: [rated(INTERSTELLAR.id, 5)], limit: 5 });
+    const { results, coldStart } = rankForYou({ ...base, rows: [rated(INTERSTELLAR.id, 10)], limit: 5 });
     expect(coldStart).toBe(true);
     for (const r of results) {
       expect(r.breakdown.weights.keyword).toBe(0);

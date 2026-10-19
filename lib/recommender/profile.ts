@@ -15,7 +15,7 @@ import {
   WEIGHT_WATCHED_UNRATED,
   WEIGHT_WATCHLIST,
 } from "@/lib/recommender/constants";
-import { crowdScore5, surpriseOffset } from "@/lib/recommender/features";
+import { crowdScore, surpriseOffset } from "@/lib/recommender/features";
 import type { RecMovie, RecUserRow } from "@/types/movie";
 
 export type TraitType = "keyword" | "genre" | "director" | "cast";
@@ -27,9 +27,9 @@ export type Anchor = {
   movieId: number;
   w: number;
   rating: number;
-  /** The movie's crowd score on the 0–5 scale; null when it isn't in the catalog. */
-  crowdScore5: number | null;
-  /** movie_avg5 − catalog_avg5 (absolute, not user-relative); null when not in the catalog. */
+  /** The movie's crowd score on the 0–10 scale; null when it isn't in the catalog. */
+  crowdScore: number | null;
+  /** movie_avg − catalog_avg (absolute, not user-relative); null when not in the catalog. */
   reputation: number | null;
 };
 
@@ -54,7 +54,7 @@ export function shrunkMean(ratings: readonly number[]): number {
 
 /**
  * A rated movie's undecayed, unclamped weight:
- * (rating − mu) − SURPRISE_BETA × offset, where offset = movie_avg5 − catalog_avg5.
+ * (rating − mu) − SURPRISE_BETA × offset, where offset = movie_avg − catalog_avg.
  * Loving an acclaimed classic counts a little less; loving a poorly reviewed
  * film, or disliking an acclaimed one, counts more.
  */
@@ -115,7 +115,7 @@ export function buildProfile(
   featuresById: ReadonlyMap<number, RecMovie>,
   popularityPercentile: (popularity: number | null) => number,
   now: Date,
-  /** C, the pool's mean vote_average: catalog_avg5 = C / 2. */
+  /** C, the pool's mean vote_average: catalog_avg = C. */
   poolMean: number,
 ): TasteProfile {
   // Sort so floating-point sums happen in the same order for the same inputs.
@@ -164,7 +164,7 @@ export function buildProfile(
         movieId: row.movie_id,
         w,
         rating: row.rating,
-        crowdScore5: movie ? crowdScore5(movie, poolMean) : null,
+        crowdScore: movie ? crowdScore(movie, poolMean) : null,
         reputation: reputation ?? null,
       });
     }

@@ -58,7 +58,7 @@ describe("genreTarget", () => {
   });
 
   it("counts watched movies whether rated or not, and ignores unwatched ones", () => {
-    const rows = [rated(1, 4), row(31, { watched: true }), row(32, { on_watchlist: true }), row(33, { not_interested: true })];
+    const rows = [rated(1, 8), row(31, { watched: true }), row(32, { on_watchlist: true }), row(33, { not_interested: true })];
     const p = genreTarget(rows, byId(history), NOW, POOL_GENRES);
     expect(p.get("Comedy")).toBeCloseTo(0.9 * 0.5 + 0.05);
   });
@@ -67,7 +67,7 @@ describe("genreTarget", () => {
     const base = genreTarget(watchedRows, byId(history), NOW, POOL_GENRES);
     const extra = movie(41, { genres: ["Comedy"] });
     const withDislike = genreTarget(
-      [...watchedRows, rated(41, 0.5)],
+      [...watchedRows, rated(41, 1)],
       byId([...history, extra]),
       NOW,
       POOL_GENRES,

@@ -50,7 +50,7 @@ describe("makePercentile", () => {
 
 describe("rawMatches", () => {
   const profile = buildProfile(
-    [rated(INTERSTELLAR.id, 5), rated(THE_MARTIAN.id, 4), rated(TRANSFORMERS.id, 1)],
+    [rated(INTERSTELLAR.id, 10), rated(THE_MARTIAN.id, 8), rated(TRANSFORMERS.id, 2)],
     byId([INTERSTELLAR, THE_MARTIAN, TRANSFORMERS]),
     flatPercentile,
     NOW,
@@ -146,7 +146,7 @@ describe("effectiveWeights", () => {
 
 describe("scoreCandidates", () => {
   const profile = buildProfile(
-    [rated(INTERSTELLAR.id, 5), rated(THE_MARTIAN.id, 4), rated(TRANSFORMERS.id, 1)],
+    [rated(INTERSTELLAR.id, 10), rated(THE_MARTIAN.id, 8), rated(TRANSFORMERS.id, 2)],
     byId([INTERSTELLAR, THE_MARTIAN, TRANSFORMERS]),
     flatPercentile,
     NOW,
