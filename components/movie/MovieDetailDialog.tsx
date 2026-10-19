@@ -7,7 +7,8 @@ import { PosterBlock } from "@/components/movie/PosterBlock";
 import { FilterChip } from "@/components/ui/FilterChip";
 import { StarRating } from "@/components/ui/StarRating";
 import { useAuth } from "@/lib/auth";
-import { formatAudienceRating, formatMovieMeta } from "@/lib/format";
+import { formatMovieMeta } from "@/lib/format";
+import { formatAudienceRating } from "@/lib/rating-scale";
 import { tmdbImageLoader } from "@/lib/tmdb-image";
 import { useUserState } from "@/lib/user-state";
 import type { CatalogMovie } from "@/types/movie";
@@ -149,10 +150,7 @@ export function MovieDetailDialog({ movie, mode, onClose, children }: MovieDetai
                     <p className="text-muted">
                       Audience{" "}
                       <span className="font-semibold text-text">
-                        <span className="text-rating" aria-hidden="true">
-                          ★
-                        </span>{" "}
-                        {formatAudienceRating(current.vote_average)}
+                        <span className="text-rating">{formatAudienceRating(current.vote_average)}</span>
                       </span>
                       {voteCount > 0 ? ` · from ${voteCount.toLocaleString("en-US")} ratings` : null}
                     </p>

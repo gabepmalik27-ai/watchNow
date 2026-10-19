@@ -8,7 +8,8 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterChip } from "@/components/ui/FilterChip";
 import { Panel } from "@/components/ui/Panel";
-import { formatAudienceRating, formatMovieMeta } from "@/lib/format";
+import { formatMovieMeta } from "@/lib/format";
+import { formatAudienceRating } from "@/lib/rating-scale";
 import { useMovieSearch } from "@/lib/use-movie-search";
 
 /**
@@ -134,7 +135,7 @@ export function SearchClient({ genres }: SearchClientProps) {
                     </p>
                     <p className="text-sm text-text">{topResult.overview}</p>
                     <p className="text-sm text-rating">
-                      ★ {formatAudienceRating(topResult.vote_average)}
+                      {formatAudienceRating(topResult.vote_average)}
                     </p>
                   </div>
                 </Panel>

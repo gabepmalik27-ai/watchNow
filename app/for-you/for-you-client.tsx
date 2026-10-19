@@ -15,7 +15,7 @@ import { StarRating } from "@/components/ui/StarRating";
 import { StatCard } from "@/components/ui/StatCard";
 import { Tabs, type TabItem } from "@/components/ui/Tabs";
 import { useAuth } from "@/lib/auth";
-import { formatAudienceRating } from "@/lib/format";
+import { formatAudienceRating } from "@/lib/rating-scale";
 import type { RecommendationResponse, RecommendedMovie } from "@/lib/recommender";
 import { useMoviesByIds } from "@/lib/use-movies-by-ids";
 import { useUserState } from "@/lib/user-state";
@@ -213,8 +213,7 @@ export function ForYouClient({ recommendations, debug }: ForYouClientProps) {
                       <span className="truncate text-sm font-medium text-text">{movie.title}</span>
                       <span className="text-xs text-muted">
                         {movie.release_year !== null ? `${movie.release_year} · ` : null}
-                        <span className="text-rating">★</span>{" "}
-                        {formatAudienceRating(movie.vote_average)}
+                        <span className="text-rating">{formatAudienceRating(movie.vote_average)}</span>
                       </span>
                     </span>
                   </MovieDetailButton>
