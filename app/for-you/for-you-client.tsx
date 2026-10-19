@@ -15,7 +15,7 @@ import { RatingControl } from "@/components/ui/RatingControl";
 import { StatCard } from "@/components/ui/StatCard";
 import { Tabs, type TabItem } from "@/components/ui/Tabs";
 import { useAuth } from "@/lib/auth";
-import { formatAudienceRating, formatUserRating } from "@/lib/rating-scale";
+import { formatAudienceRating, formatUserRating, ratingTendency } from "@/lib/rating-scale";
 import type { RecommendationResponse, RecommendedMovie } from "@/lib/recommender";
 import { useMoviesByIds } from "@/lib/use-movies-by-ids";
 import { useUserState } from "@/lib/user-state";
@@ -86,7 +86,8 @@ export function ForYouClient({ recommendations, debug }: ForYouClientProps) {
   const displayWatched = loaded ? watchedCount : "–";
   const displayRated = loaded ? ratedCount : "–";
   const displayWatchlist = loaded ? watchlistCount : "–";
-  const displayAvg = loaded && ratedCount > 0 ? averageRating.toFixed(1) : "–";
+  const hasAvg = loaded && ratedCount > 0;
+  const displayAvg = hasAvg ? `${averageRating.toFixed(1)}/10` : "–";
 
   // Most recent first: array order is oldest -> newest touched.
   const ratedUserMovies = userMovies.filter((um) => um.rating !== null).reverse();
@@ -133,7 +134,11 @@ export function ForYouClient({ recommendations, debug }: ForYouClientProps) {
         <div className="grid grid-cols-2 gap-4 tablet:grid-cols-4">
           <StatCard value={displayWatched} label="Watched" />
           <StatCard value={displayRated} label="Rated" />
-          <StatCard value={displayAvg} label="Avg rating" />
+          <StatCard
+            value={displayAvg}
+            label="Avg rating"
+            sublabel={hasAvg ? ratingTendency(averageRating) : undefined}
+          />
           <StatCard value={displayWatchlist} label="Watchlist" />
         </div>
 

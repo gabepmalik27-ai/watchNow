@@ -42,3 +42,15 @@ export function formatUserRating(n: number): string {
 export function formatAudienceRating(voteAverage: number | null): string {
   return voteAverage === null ? "—" : `${voteAverage.toFixed(1)}/${RATING_MAX}`;
 }
+
+/** An average at or above this reads as generous. */
+export const RATING_GENEROUS_AT = 7.0;
+/** An average at or below this reads as tough. */
+export const RATING_TOUGH_AT = 5.0;
+
+/** How a user's average rating compares with the scale's anchor, in words. */
+export function ratingTendency(average: number): string {
+  if (average >= RATING_GENEROUS_AT) return "You rate generously";
+  if (average <= RATING_TOUGH_AT) return "You rate tough";
+  return "Close to average";
+}

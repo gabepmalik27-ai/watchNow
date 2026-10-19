@@ -6,6 +6,7 @@ import {
   formatUserRating,
   isValidRating,
   ratingLabel,
+  ratingTendency,
 } from "../rating-scale";
 
 describe("rating scale", () => {
@@ -26,5 +27,14 @@ describe("rating scale", () => {
     expect(formatUserRating(7)).toBe("7/10");
     expect(formatAudienceRating(7.84)).toBe("7.8/10");
     expect(formatAudienceRating(null)).toBe("—");
+  });
+
+  it("describes an average against the anchor", () => {
+    expect(ratingTendency(7)).toBe("You rate generously");
+    expect(ratingTendency(8.4)).toBe("You rate generously");
+    expect(ratingTendency(5)).toBe("You rate tough");
+    expect(ratingTendency(3.2)).toBe("You rate tough");
+    expect(ratingTendency(6)).toBe("Close to average");
+    expect(ratingTendency(6.9)).toBe("Close to average");
   });
 });

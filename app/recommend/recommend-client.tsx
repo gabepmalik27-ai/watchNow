@@ -87,7 +87,7 @@ function BreakdownPanel({ breakdown }: { breakdown: ScoreBreakdown }) {
         </tbody>
       </table>
       <p className="mt-2">
-        raw kw {fmt(breakdown.raw.keyword)} · genre {fmt(breakdown.raw.genre)} · people{" "}
+        raw taste matches (affinities on the 1–10 rating scale): kw {fmt(breakdown.raw.keyword)} · genre {fmt(breakdown.raw.genre)} · people{" "}
         {fmt(breakdown.raw.people)}
       </p>
       <p>

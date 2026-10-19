@@ -4,10 +4,16 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { BarChart } from "@/components/charts/BarChart";
 import { ChartTable } from "@/components/charts/ChartTable";
-import { ColumnChart } from "@/components/charts/ColumnChart";
+import { ColumnChart, type ColumnMarker } from "@/components/charts/ColumnChart";
 import type { ChartDatum } from "@/components/charts/types";
 import { Panel } from "@/components/ui/Panel";
 import { Skeleton } from "@/components/ui/Skeleton";
+import {
+  RATING_AVERAGE_ANCHOR,
+  RATING_MAX,
+  RATING_MIN,
+  formatUserRating,
+} from "@/lib/rating-scale";
 import {
   TOP_GENRES_MIN_RATINGS,
   genresByWatchCount,
@@ -84,7 +90,7 @@ export function ForYouCharts({ userMovies, loaded, known }: ForYouChartsProps) {
     key: g.genre,
     label: g.genre,
     value: g.average,
-    valueText: `★${g.average.toFixed(1)}`,
+    valueText: `${g.average.toFixed(1)}/${RATING_MAX}`,
     detail: `from ${plural(g.count, "rating", "ratings")}`,
   }));
 
@@ -101,12 +107,18 @@ export function ForYouCharts({ userMovies, loaded, known }: ForYouChartsProps) {
   const ratedTotal = distribution.reduce((sum, b) => sum + b.count, 0);
   const distributionData: ChartDatum[] = distribution.map((b) => ({
     key: String(b.rating),
-    label: `${b.rating.toFixed(1)} stars`,
+    label: `${b.rating} out of ${RATING_MAX}`,
     value: b.count,
     valueText: String(b.count),
     detail: plural(b.count, "movie", "movies"),
   }));
   const mostCommon = distribution.reduce((best, b) => (b.count > best.count ? b : best), distribution[0]);
+  const userMean =
+    ratedTotal === 0 ? 0 : distribution.reduce((sum, b) => sum + b.rating * b.count, 0) / ratedTotal;
+  const markers: ColumnMarker[] = [
+    { position: RATING_AVERAGE_ANCHOR - RATING_MIN, label: "average", kind: "dashed" },
+    { position: userMean - RATING_MIN, label: `your mean ${userMean.toFixed(1)}`, kind: "solid" },
+  ];
 
   const genreError = error && movies.length < seenIds.length;
 
@@ -127,12 +139,12 @@ export function ForYouCharts({ userMovies, loaded, known }: ForYouChartsProps) {
         ) : (
           <>
             <BarChart
-              label="Top genres by your average rating, out of 5"
+              label={`Top genres by your average rating, out of ${RATING_MAX}`}
               summary={`Your highest-rated genres: ${topGenres
-                .map((g) => `${g.genre} ${g.average.toFixed(1)} stars from ${plural(g.count, "rating", "ratings")}`)
+                .map((g) => `${g.genre} ${g.average.toFixed(1)} out of ${RATING_MAX} from ${plural(g.count, "rating", "ratings")}`)
                 .join("; ")}.`}
               data={topGenreData}
-              max={5}
+              max={RATING_MAX}
             />
             <ChartTable caption="Top genres by average rating" categoryHeader="Genre" valueHeader="Average" data={topGenreData} />
           </>
@@ -161,22 +173,22 @@ export function ForYouCharts({ userMovies, loaded, known }: ForYouChartsProps) {
         )}
       </ChartPanel>
 
-      <ChartPanel title="Rating Distribution" subtitle="How your ratings spread from 0.5 to 5.0 stars">
+      <ChartPanel title="Rating Distribution" subtitle={`How your ratings spread from ${RATING_MIN} to ${RATING_MAX}`}>
         {!loaded ? (
           <ChartLoading />
         ) : ratedTotal === 0 ? (
-          <ChartEmpty message="Your ratings will show up here as a spread from 0.5 to 5 stars." />
+          <ChartEmpty message={`Your ratings will show up here as a spread from ${RATING_MIN} to ${RATING_MAX}.`} />
         ) : (
           <>
             <ColumnChart
-              label="Number of movies at each rating, 0.5 to 5 stars"
-              summary={`${plural(ratedTotal, "rating", "ratings")}; most common is ${mostCommon.rating.toFixed(1)} stars (${plural(mostCommon.count, "movie", "movies")}). ${distribution
+              label={`Number of movies at each rating, ${RATING_MIN} to ${RATING_MAX}`}
+              summary={`${plural(ratedTotal, "rating", "ratings")}; most common is ${formatUserRating(mostCommon.rating)} (${plural(mostCommon.count, "movie", "movies")}); your mean is ${userMean.toFixed(1)}/${RATING_MAX} against the ${RATING_AVERAGE_ANCHOR}/${RATING_MAX} average. ${distribution
                 .filter((b) => b.count > 0)
-                .map((b) => `${b.rating.toFixed(1)}: ${b.count}`)
+                .map((b) => `${b.rating}: ${b.count}`)
                 .join(", ")}.`}
               data={distributionData}
-              // Whole stars labeled; half steps stay unlabeled so ten slots don't crowd.
-              ticks={distribution.map((b) => (Number.isInteger(b.rating) ? `${b.rating}★` : ""))}
+              ticks={distribution.map((b) => String(b.rating))}
+              markers={markers}
             />
             <ChartTable caption="Number of movies at each rating" categoryHeader="Rating" valueHeader="Movies" data={distributionData} />
           </>
