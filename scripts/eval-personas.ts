@@ -98,7 +98,7 @@ const PERSONAS: Persona[] = [
     ],
   },
   {
-    // Rates acclaimed classics 3★ and lower-rated cult/style films 5★: the
+    // Rates acclaimed classics 6/10 and lower-rated cult/style films 10/10: the
     // case where a rating's distance from the movie's reputation matters most.
     name: "Contrarian",
     ratings: [
