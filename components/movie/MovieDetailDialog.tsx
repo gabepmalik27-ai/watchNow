@@ -5,15 +5,15 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PosterBlock } from "@/components/movie/PosterBlock";
 import { FilterChip } from "@/components/ui/FilterChip";
-import { StarRating } from "@/components/ui/StarRating";
+import { RatingControl } from "@/components/ui/RatingControl";
 import { useAuth } from "@/lib/auth";
 import { formatMovieMeta } from "@/lib/format";
-import { formatAudienceRating } from "@/lib/rating-scale";
+import { formatAudienceRating, formatUserRating, ratingLabel } from "@/lib/rating-scale";
 import { tmdbImageLoader } from "@/lib/tmdb-image";
 import { useUserState } from "@/lib/user-state";
 import type { CatalogMovie } from "@/types/movie";
 
-/** "rate": stars and Watched/Watchlist chips (Rate page). "browse": everywhere else. */
+/** "rate": the 1–10 control and Watched/Watchlist chips (Rate page). "browse": everywhere else. */
 export type DetailMode = "browse" | "rate";
 
 /** How many cast names the dialog lists. */
@@ -53,8 +53,8 @@ export function MovieDetailDialog({ movie, mode, onClose, children }: MovieDetai
     if (!dialog) return;
     if (movie && !dialog.open) {
       dialog.showModal();
-      // showModal() focuses the close button; in rate mode the stars come first.
-      if (mode === "rate") dialog.querySelector<HTMLElement>('[role="slider"]')?.focus();
+      // showModal() focuses the close button; in rate mode the rating control comes first.
+      if (mode === "rate") dialog.querySelector<HTMLElement>('[role="radio"][tabindex="0"]')?.focus();
     }
     if (!movie && dialog.open) dialog.close();
   }, [movie, mode]);
@@ -159,10 +159,8 @@ export function MovieDetailDialog({ movie, mode, onClose, children }: MovieDetai
                     <p className="text-muted">
                       Your rating{" "}
                       <span className="font-semibold text-text">
-                        <span className="text-rating" aria-hidden="true">
-                          ★
-                        </span>
-                        {rating.toFixed(1)}
+                        {formatUserRating(rating)}
+                        <span className="font-normal text-muted"> · {ratingLabel(rating)}</span>
                       </span>
                     </p>
                   ) : null}
@@ -192,32 +190,6 @@ export function MovieDetailDialog({ movie, mode, onClose, children }: MovieDetai
 
               {mode === "rate" ? (
                 <>
-                  <div className="flex flex-col gap-2">
-                    <p className="text-sm font-semibold">Your rating</p>
-                    <StarRating
-                      value={rating}
-                      onChange={(value) => setRating(current.id, value)}
-                      label={`Rate ${current.title}`}
-                      size="md"
-                    />
-                    {rating === null ? (
-                      <p className="text-xs text-muted">
-                        Tap a star — half stars supported
-                      </p>
-                    ) : (
-                      <>
-                        <p className="text-xs text-muted">{rating.toFixed(1)} out of 5</p>
-                        <button
-                          type="button"
-                          onClick={() => removeRating(current.id)}
-                          className={TEXT_BUTTON}
-                        >
-                          Remove rating
-                        </button>
-                      </>
-                    )}
-                  </div>
-
                   <div className="flex flex-wrap items-center gap-2">
                     <FilterChip
                       label="Watched"
@@ -290,6 +262,23 @@ export function MovieDetailDialog({ movie, mode, onClose, children }: MovieDetai
               )}
             </div>
           </div>
+
+          {mode === "rate" ? (
+            // Full width, below the poster row: ten 44px targets don't fit in the info column.
+            <div className="flex flex-col gap-2 px-4 pb-4 tablet:px-8 tablet:pb-8">
+              <p className="text-sm font-semibold">Your rating</p>
+              <RatingControl
+                value={rating}
+                onChange={(value) => setRating(current.id, value)}
+                label={`Rate ${current.title}`}
+              />
+              {rating !== null ? (
+                <button type="button" onClick={() => removeRating(current.id)} className={TEXT_BUTTON}>
+                  Remove rating
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
       {children}

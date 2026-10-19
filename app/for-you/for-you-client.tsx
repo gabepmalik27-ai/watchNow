@@ -11,11 +11,11 @@ import { DiagnosticsPanel } from "@/components/ui/DiagnosticsPanel";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Panel } from "@/components/ui/Panel";
 import { PersonalizePrompt } from "@/components/ui/PersonalizePrompt";
-import { StarRating } from "@/components/ui/StarRating";
+import { RatingControl } from "@/components/ui/RatingControl";
 import { StatCard } from "@/components/ui/StatCard";
 import { Tabs, type TabItem } from "@/components/ui/Tabs";
 import { useAuth } from "@/lib/auth";
-import { formatAudienceRating } from "@/lib/rating-scale";
+import { formatAudienceRating, formatUserRating } from "@/lib/rating-scale";
 import type { RecommendationResponse, RecommendedMovie } from "@/lib/recommender";
 import { useMoviesByIds } from "@/lib/use-movies-by-ids";
 import { useUserState } from "@/lib/user-state";
@@ -44,7 +44,7 @@ const ACTIVITY_LIMIT = 5;
 
 /** Describes a movie's current state; null when nothing is set (e.g. removed from watchlist). */
 function describeActivity(userMovie: UserMovie, title: string): string | null {
-  if (userMovie.rating !== null) return `Rated ${title} ★${userMovie.rating.toFixed(1)}`;
+  if (userMovie.rating !== null) return `Rated ${title} ${formatUserRating(userMovie.rating)}`;
   if (userMovie.watched) return `Marked ${title} watched`;
   if (userMovie.on_watchlist) return `Added ${title} to watchlist`;
   if (userMovie.not_interested) return `Marked ${title} not interested`;
@@ -64,7 +64,6 @@ export function ForYouClient({ recommendations, debug }: ForYouClientProps) {
   const {
     userMovies,
     getUserMovie,
-    setRating,
     toggleWatchlist,
     watchedCount,
     ratedCount,
@@ -183,12 +182,10 @@ export function ForYouClient({ recommendations, debug }: ForYouClientProps) {
                       ) : null}
                     </span>
                   </MovieDetailButton>
-                  <StarRating
-                    value={userMovie.rating}
-                    onChange={(value) => setRating(movie.id, value)}
-                    label={`Rate ${movie.title}`}
-                    size="sm"
-                  />
+                  {/* Read-only: ten 44px targets don't fit a poster card. Open the movie to change it. */}
+                  <span className="px-1">
+                    <RatingControl value={userMovie.rating} label={movie.title} />
+                  </span>
                 </div>
               ))}
             </div>
