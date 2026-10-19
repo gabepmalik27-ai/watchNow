@@ -1,0 +1,334 @@
+
+> watchnow@0.1.0 eval
+> tsx --env-file=.env.local scripts/eval-personas.ts
+
+Pool: 2000 movies, 1.24 MB as JSON (data cache limit 2 MB)
+For You weights: keyword 0.35, genre 0.25, people 0.15, quality 0.15, rarity 0.1; ≤ 2 per director
+
+Persona ids (expected → catalog title):
+  157336 Interstellar: ok
+  329865 Arrival: ok
+  335984 Blade Runner 2049: ok
+  27205 Inception: ok
+  62 2001: A Space Odyssey: ok
+  264660 Ex Machina: ok
+  686 Contact: ok
+  300668 Annihilation: ok
+  286217 The Martian: ok
+  1858 Transformers: ok
+  862 Toy Story: ok
+  14160 Up: ok
+  150540 Inside Out: ok
+  354912 Coco: ok
+  269149 Zootopia: ok
+  346648 Paddington 2: ok
+  8363 Superbad: ok
+  120467 The Grand Budapest Hotel: ok
+  808 Shrek: ok
+  176 Saw: ok
+  493922 Hereditary: ok
+  419430 Get Out: ok
+  138843 The Conjuring: ok
+  694 The Shining: ok
+  807 Se7en: ok
+  274 The Silence of the Lambs: ok
+  447332 A Quiet Place: ok
+  530385 Midsommar: ok
+  146233 Prisoners: ok
+  109445 Frozen: ok
+  238 The Godfather: ok
+  278 The Shawshank Redemption: ok
+  424 Schindler's List: ok
+  13 Forrest Gump: ok
+  289 Casablanca: ok
+  15 Citizen Kane: ok
+  76757 Jupiter Ascending: ok
+  19994 Jennifer's Body: ok
+  23629 Sucker Punch: ok
+  460885 Mandy: ok (outside pool)
+  7459 Speed Racer: ok (outside pool)
+  10428 Hackers: ok (outside pool)
+  18785 The Hangover: ok
+  8363 Superbad: ok
+  137 Groundhog Day: ok
+  747 Shaun of the Dead: ok
+  22538 Scott Pilgrim vs. the World: ok
+  10625 Mean Girls: ok
+  7446 Tropic Thunder: ok
+  8467 Dumb and Dumber: ok
+  1584 The School of Rock: ok
+  762 Monty Python and the Holy Grail: ok
+  6957 The 40 Year-Old Virgin: ok
+  195589 Neighbors: ok
+  37735 Easy A: ok
+  109414 This Is the End: ok
+  114150 Pitch Perfect: ok
+  1597 Meet the Parents: ok
+  39513 Paul: ok
+  1624 Liar Liar: ok
+  4247 Scary Movie: ok
+  2105 American Pie: ok
+  57214 Project X: ok
+  76493 The Dictator: ok
+  302699 Central Intelligence: ok
+  10201 Yes Man: ok
+  310 Bruce Almighty: ok
+  72105 Ted: ok
+  19908 Zombieland: ok
+  771 Home Alone: ok
+  2108 The Breakfast Club: ok
+  773 Little Miss Sunshine: ok
+  238 The Godfather: ok
+  769 GoodFellas: ok
+  1422 The Departed: ok
+  500 Reservoir Dogs: ok
+  103 Taxi Driver: ok
+  6977 No Country for Old Men: ok
+  640 Catch Me If You Can: ok
+  240 The Godfather Part II: ok
+  101 Léon: The Professional: ok
+  64690 Drive: ok
+  120467 The Grand Budapest Hotel: ok
+  83666 Moonrise Kingdom: ok
+  747 Shaun of the Dead: ok
+  22538 Scott Pilgrim vs. the World: ok
+  773 Little Miss Sunshine: ok
+  254320 The Lobster: ok
+  153 Lost in Translation: ok
+  7326 Juno: ok
+  391713 Lady Bird: ok
+  515001 Jojo Rabbit: ok
+  935 Dr. Strangelove or: How I Learned to Stop Worrying and Love the Bomb: ok
+  762 Monty Python and the Holy Grail: ok
+  38365 Grown Ups: ok
+  9339 Click: ok
+  1824 50 First Dates: ok
+  257344 Pixels: ok
+  214756 Ted 2: ok
+  72105 Ted: ok
+  4247 Scary Movie: ok
+  2105 American Pie: ok
+  57214 Project X: ok
+  109439 The Hangover Part III: ok
+  45243 The Hangover Part II: ok
+  302699 Central Intelligence: ok
+
+## Cerebral sci-fi fan
+   1. A.I. Artificial Intelligence (2001) — 0.731  keyword 0.661 · genre 0.961 · people 0.635 · quality 0.522 · rarity 0.860
+      Because you loved Blade Runner 2049: artificial intelligence (a.i.), dystopia
+   2. The Prestige (2006) — 0.765  keyword 0.507 · genre 0.955 · people 0.914 · quality 0.784 · rarity 0.936
+      Because you loved Contact: based on novel or book, Science Fiction
+   3. Project Hail Mary (2026) — 0.845  keyword 0.840 · genre 0.970 · people 0.660 · quality 0.857 · rarity 0.811
+      Because you loved Interstellar: space travel, scientist
+   4. Planet of the Apes (1968) — 0.744  keyword 0.790 · genre 0.776 · people 0.635 · quality 0.641 · rarity 0.821
+      Because you loved Interstellar: space travel, astronaut
+   5. Moon (2009) — 0.784  keyword 0.875 · genre 0.971 · people 0.635 · quality 0.630 · rarity 0.455
+      Because you loved Interstellar: artificial intelligence (a.i.), dystopia
+   6. Dune (2021) — 0.831  keyword 0.716 · genre 0.970 · people 1.000 · quality 0.688 · rarity 0.845
+      Because you loved Interstellar: dystopia, space
+   7. The Thing (1982) — 0.678  keyword 0.576 · genre 0.701 · people 0.635 · quality 0.746 · rarity 0.937
+      Because you loved Arrival: spacecraft, Science Fiction
+   8. Gravity (2013) — 0.769  keyword 1.000 · genre 0.648 · people 0.635 · quality 0.547 · rarity 0.801
+      Because you loved Interstellar: space station, astronaut
+   9. Star Wars: The Force Awakens (2015) — 0.756  keyword 0.845 · genre 0.721 · people 0.660 · quality 0.548 · rarity 0.993
+      Because you loved Interstellar: spacecraft, Science Fiction
+  10. Blade Runner (1982) — 0.758  keyword 0.861 · genre 0.648 · people 0.640 · quality 0.711 · rarity 0.923
+      Because you loved Blade Runner 2049: artificial intelligence (a.i.), dystopia
+  → mean popularity pct 0.756 · mean quality 0.667 · "higher than most viewers" reasons: 0
+  calibration λ 0.5: L1(target, top 20) 0.484 before → 0.185 after
+  genre mix of top 20:      target  before  after
+    Science Fiction     35%     28%    34%
+    Drama               22%     43%    25%
+    Adventure           16%     15%    15%
+    Mystery             10%      2%     8%
+    Action               7%      6%     8%
+    Horror               5%      3%     4%
+    Thriller             1%      3%     3%
+    Animation            1%      0%     2%
+
+## Comedy / animation fan
+   1. Inside Out 2 (2024) — 0.855  keyword 1.000 · genre 0.977 · people 0.528 · quality 0.610 · rarity 0.898
+      Because you loved Inside Out: pixar, duringcreditsstinger
+   2. Toy Story 2 (1999) — 0.890  keyword 0.950 · genre 0.956 · people 0.880 · quality 0.641 · rarity 0.900
+      Because you loved Toy Story: pixar, villain
+   3. Toy Story 4 (2019) — 0.840  keyword 0.906 · genre 0.977 · people 0.601 · quality 0.615 · rarity 0.958
+      Because you loved Toy Story: pixar, 3d animation
+   4. Cars (2006) — 0.837  keyword 0.861 · genre 0.977 · people 0.787 · quality 0.524 · rarity 0.954
+      Because you loved Up: pixar, duringcreditsstinger
+   5. Toy Story 3 (2010) — 0.886  keyword 0.918 · genre 0.956 · people 0.863 · quality 0.689 · rarity 0.928
+      Because you loved Toy Story: pixar, villain
+   6. The Secret Life of Pets 2 (2019) — 0.811  keyword 0.938 · genre 0.977 · people 0.509 · quality 0.481 · rarity 0.904
+      Because you loved Toy Story: villain, 3d animation
+   7. Soul (2020) — 0.771  keyword 0.855 · genre 0.561 · people 0.805 · quality 0.754 · rarity 0.974
+      Because you loved Coco: pixar, 3d animation
+   8. Paddington (2014) — 0.811  keyword 0.848 · genre 1.000 · people 1.000 · quality 0.521 · rarity 0.359
+      Because you loved Paddington 2: based on children's book, bear
+   9. The Intouchables (2011) — 0.713  keyword 0.742 · genre 0.631 · people 0.509 · quality 0.809 · rarity 0.977
+      Because you loved Up: duringcreditsstinger, cheerful
+  10. Penguins of Madagascar (2014) — 0.800  keyword 0.925 · genre 0.977 · people 0.509 · quality 0.398 · rarity 0.964
+      Because you loved Zootopia: villain, 3d animation
+  → mean popularity pct 0.815 · mean quality 0.604 · "higher than most viewers" reasons: 0
+  calibration λ 0.5: L1(target, top 20) 0.634 before → 0.385 after
+  genre mix of top 20:      target  before  after
+    Comedy              27%     20%    28%
+    Family              16%     27%    24%
+    Adventure           16%     23%    17%
+    Animation           13%     27%    24%
+    Drama                7%      0%     4%
+    Crime                4%      0%     0%
+    Horror               4%      0%     0%
+    Mystery              4%      0%     0%
+    Music                3%      1%     2%
+    Fantasy              2%      1%     2%
+
+## Horror / thriller fan
+   1. Psycho (1960) — 0.806  keyword 0.702 · genre 0.946 · people 0.719 · quality 0.822 · rarity 0.923
+      Because you loved Se7en: murder, serial killer
+   2. Nightcrawler (2014) — 0.756  keyword 0.724 · genre 0.787 · people 0.734 · quality 0.662 · rarity 0.967
+      Because you loved The Silence of the Lambs: murder, psychopath
+   3. The Black Phone (2022) — 0.799  keyword 0.750 · genre 0.962 · people 0.719 · quality 0.608 · rarity 0.970
+      Because you loved The Shining: child abuse, colorado
+   4. The Sixth Sense (1999) — 0.782  keyword 0.719 · genre 0.851 · people 0.775 · quality 0.733 · rarity 0.914
+      Because you loved The Shining: psychological thriller, child abuse
+   5. Red Dragon (2002) — 0.788  keyword 1.000 · genre 0.882 · people 0.761 · quality 0.521 · rarity 0.255
+      Because you loved The Silence of the Lambs: murder, based on novel or book
+   6. The Exorcist (1973) — 0.816  keyword 0.813 · genre 0.924 · people 0.719 · quality 0.657 · rarity 0.937
+      Because you loved Hereditary: possession, demon
+   7. Gone Girl (2014) — 0.775  keyword 0.666 · genre 0.851 · people 0.958 · quality 0.715 · rarity 0.787
+      Because you loved Get Out: psychological thriller, disappearance
+   8. Zodiac (2007) — 0.814  keyword 0.779 · genre 0.879 · people 0.973 · quality 0.615 · rarity 0.832
+      Because you loved Se7en: murder, frightened
+   9. Memento (2000) — 0.797  keyword 0.672 · genre 0.957 · people 0.719 · quality 0.783 · rarity 0.976
+      Because you loved Se7en: murder, neo-noir
+  10. Misery (1990) — 0.756  keyword 0.784 · genre 0.819 · people 0.719 · quality 0.669 · rarity 0.685
+      Because you loved The Silence of the Lambs: based on novel or book, disturbed
+  → mean popularity pct 0.669 · mean quality 0.678 · "higher than most viewers" reasons: 0
+  calibration λ 0.5: L1(target, top 20) 0.528 before → 0.388 after
+  genre mix of top 20:      target  before  after
+    Thriller            25%     35%    34%
+    Horror              22%     33%    28%
+    Mystery             13%     17%    15%
+    Drama               13%      8%    13%
+    Crime               10%      7%    10%
+    Science Fiction      4%      0%     0%
+
+## Contrarian
+   1. Fargo (1996) — 0.677  keyword 0.749 · genre 0.557 · people 0.497 · quality 0.681 · rarity 0.984
+      You rated Hackers higher than most viewers
+   2. Big Trouble in Little China (1986) — 0.662  keyword 0.666 · genre 0.804 · people 0.497 · quality 0.539 · rarity 0.723
+      You rated Mandy higher than most viewers
+   3. Dawn of the Dead (2004) — 0.751  keyword 0.750 · genre 0.794 · people 0.945 · quality 0.521 · rarity 0.696
+      You rated Mandy higher than most viewers
+   4. Return (2011) — 0.660  keyword 1.000 · genre 0.471 · people 0.497 · quality 0.381 · rarity 0.602
+      You rated Jupiter Ascending higher than most viewers
+   5. Evil Dead II (1987) — 0.718  keyword 0.740 · genre 0.808 · people 0.497 · quality 0.599 · rarity 0.923
+      You rated Mandy higher than most viewers
+   6. Kick-Ass (2010) — 0.715  keyword 0.763 · genre 0.770 · people 0.570 · quality 0.523 · rarity 0.916
+      You rated Mandy higher than most viewers
+   7. The Matrix Resurrections (2021) — 0.757  keyword 0.838 · genre 0.702 · people 0.921 · quality 0.348 · rarity 0.982
+      You rated Jupiter Ascending higher than most viewers
+   8. Wild Tales (2014) — 0.677  keyword 0.708 · genre 0.647 · people 0.497 · quality 0.679 · rarity 0.907
+      You rated Hackers higher than most viewers
+   9. Watchmen (2009) — 0.688  keyword 0.648 · genre 0.544 · people 0.945 · quality 0.591 · rarity 0.949
+      You rated Mandy higher than most viewers
+  10. Christopher Robin (2018) — 0.681  keyword 0.790 · genre 0.655 · people 0.497 · quality 0.557 · rarity 0.830
+      You rated Speed Racer higher than most viewers
+  → mean popularity pct 0.348 · mean quality 0.542 · "higher than most viewers" reasons: 10
+  calibration λ 0.5: L1(target, top 20) 1.041 before → 0.666 after
+  genre mix of top 20:      target  before  after
+    Drama               22%      0%    11%
+    Action              12%     33%    22%
+    Crime               10%      4%     8%
+    Comedy               9%     11%    12%
+    Fantasy              8%     10%     8%
+    Horror               7%      5%     7%
+    Romance              7%      0%     0%
+    Thriller             5%     15%    10%
+    Mystery              4%      0%     2%
+    Science Fiction      3%     12%    13%
+    History              3%      0%     0%
+    War                  3%      0%     0%
+    Adventure            2%     10%     7%
+    Family               2%      0%     1%
+
+## Comedy 30 / Crime 10
+   1. The Wolf of Wall Street (2013) — 0.680  keyword 0.539 · genre 0.856 · people 0.682 · quality 0.741 · rarity 0.640
+      Because you loved GoodFellas: based on novel or book, based on true story
+   2. Zombieland: Double Tap (2019) — 0.850  keyword 0.853 · genre 1.000 · people 0.897 · quality 0.478 · rarity 0.947
+      Because you loved The School of Rock: hilarious, amused
+   3. Ghost (1990) — 0.615  keyword 0.561 · genre 0.750 · people 0.406 · quality 0.543 · rarity 0.886
+      Because you loved Groundhog Day: Fantasy, Romance
+   4. Home Alone 2: Lost in New York (1992) — 0.776  keyword 1.000 · genre 0.628 · people 0.886 · quality 0.454 · rarity 0.681
+      Because you loved Groundhog Day: holiday, Comedy
+   5. 21 Jump Street (2012) — 0.713  keyword 0.771 · genre 0.791 · people 0.506 · quality 0.477 · rarity 0.976
+      Because you loved Tropic Thunder: parody, duringcreditsstinger
+   6. Boogie Nights (1997) — 0.720  keyword 0.727 · genre 0.899 · people 0.458 · quality 0.618 · rarity 0.794
+      Because you loved Superbad: coming of age, los angeles, california
+   7. Ferris Bueller's Day Off (1986) — 0.792  keyword 0.749 · genre 1.000 · people 0.716 · quality 0.627 · rarity 0.781
+      Because you loved Superbad: high school, coming of age
+   8. The Godfather Part III (1990) — 0.753  keyword 0.855 · genre 0.702 · people 0.849 · quality 0.588 · rarity 0.625
+      Because you loved The Godfather: italy, symbolism
+   9. Bridget Jones's Diary (2001) — 0.725  keyword 0.873 · genre 0.884 · people 0.406 · quality 0.436 · rarity 0.715
+      Because you loved Groundhog Day: telecaster, Comedy
+  10. Life of Brian (1979) — 0.782  keyword 0.606 · genre 1.000 · people 0.912 · quality 0.668 · rarity 0.834
+      Because you loved Monty Python and the Holy Grail: satire, parody
+  → mean popularity pct 0.593 · mean quality 0.563 · "higher than most viewers" reasons: 0
+  calibration λ 0.5: L1(target, top 20) 0.457 before → 0.234 after
+  genre mix of top 20:      target  before  after
+    Comedy              41%     53%    48%
+    Drama               12%     18%    13%
+    Crime               10%     11%    10%
+    Romance              7%      2%     8%
+    Fantasy              5%      0%     4%
+    Action               5%      3%     5%
+    Thriller             4%      7%     7%
+    Horror               3%      2%     2%
+    Family               2%      2%     2%
+    Adventure            2%      2%     2%
+    History              1%      2%     2%
+
+## Picky comedy fan
+   1. The Royal Tenenbaums (2001) — 0.823  keyword 0.728 · genre 0.948 · people 0.949 · quality 0.605 · rarity 0.981
+      Because you loved Juno: hopeful, Comedy
+   2. To All the Boys I've Loved Before (2018) — 0.743  keyword 0.780 · genre 0.871 · people 0.560 · quality 0.635 · rarity 0.728
+      Because you loved Lost in Translation: woman director, Comedy
+   3. Life of Brian (1979) — 0.861  keyword 0.820 · genre 1.000 · people 0.866 · quality 0.668 · rarity 0.938
+      Because you loved Monty Python and the Holy Grail: hilarious, anarchic comedy
+   4. Barbie (2023) — 0.734  keyword 0.962 · genre 0.599 · people 0.812 · quality 0.477 · rarity 0.544
+      Because you loved Monty Python and the Holy Grail: hilarious, satire
+   5. Paths of Glory (1957) — 0.810  keyword 0.852 · genre 0.760 · people 0.819 · quality 0.751 · rarity 0.864
+      Because you loved Dr. Strangelove or: How I Learned to Stop Worrying and Love the Bomb: anti war, black and white
+   6. The Edge of Seventeen (2016) — 0.814  keyword 1.000 · genre 0.948 · people 0.560 · quality 0.521 · rarity 0.651
+      Because you loved Lady Bird: woman director, best friend
+   7. The Holiday (2006) — 0.736  keyword 0.750 · genre 0.871 · people 0.560 · quality 0.521 · rarity 0.938
+      Because you loved Lost in Translation: woman director, Comedy
+   8. Triangle of Sadness (2022) — 0.777  keyword 0.843 · genre 0.948 · people 0.560 · quality 0.500 · rarity 0.855
+      Because you loved Jojo Rabbit: questioning, satire
+   9. The Great Dictator (1940) — 0.758  keyword 0.789 · genre 0.812 · people 0.560 · quality 0.758 · rarity 0.816
+      Because you loved Dr. Strangelove or: How I Learned to Stop Worrying and Love the Bomb: anti war, black and white
+  10. The Dictator (2012) — 0.747  keyword 0.833 · genre 1.000 · people 0.517 · quality 0.326 · rarity 0.790
+      Because you loved Monty Python and the Holy Grail: hilarious, satire
+  → mean popularity pct 0.423 · mean quality 0.576 · "higher than most viewers" reasons: 0
+  calibration λ 0.5: L1(target, top 20) 0.954 before → 0.334 after
+  genre mix of top 20:      target  before  after
+    Comedy              49%     25%    48%
+    Drama               14%     60%    28%
+    Romance             11%     10%    11%
+    Fantasy              8%      0%     2%
+    Action               4%      0%     2%
+    War                  4%      5%     5%
+    Adventure            3%      0%     3%
+    Science Fiction      1%      0%     2%
+  comedies in top 20: 17
+    vs liked comedies:  keywords shared 70 · same director 5 · shared top-3 cast 3
+    vs panned comedies: keywords shared 22 · same director 0 · shared top-3 cast 2
+    ! The Dictator shares Anna Faris with a panned comedy
+    ! Daddy's Home shares Mark Wahlberg with a panned comedy
+
+Overlap between top-10 lists (gated personas):
+  Cerebral sci-fi fan × Comedy / animation fan: 0 ok
+  Cerebral sci-fi fan × Horror / thriller fan: 0 ok
+  Cerebral sci-fi fan × Contrarian: 0 ok
+  Comedy / animation fan × Horror / thriller fan: 0 ok
+  Comedy / animation fan × Contrarian: 0 ok
+  Horror / thriller fan × Contrarian: 0 ok
