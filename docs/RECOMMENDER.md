@@ -14,25 +14,38 @@ No LLM is involved, and no other user's data is read. The same inputs always pro
 
 ---
 
+## 0. The rating scale
+
+Users rate on a labeled **1–10 integer scale** (`lib/rating-scale.ts`): 1 Awful, 2 Very bad, 3 Bad, 4 Below average, 5 Meh, 6 Average, 7 Good, 8 Great, 9 Excellent, 10 All-time favorite. There are no half steps.
+
+Two numbers look like "the average" and are deliberately separate:
+
+- `RATING_AVERAGE_ANCHOR = 6` is a **label** shown to users (the "average" marker on the rating control and the Rating Distribution chart). The team may revisit it, and changing it moves no recommendation.
+- `MU_PRIOR = 7` is the rating a new user's baseline is shrunk toward. It is the exact double of the old half-star value (3.5), chosen so the move to 1–10 changes no recommendation. See [Why the move to 1–10 changed nothing](#why-the-move-to-110-changed-nothing).
+
+TMDB's `vote_average` is already 0–10, so crowd scores and user ratings share one scale and no `/ 2` conversion remains anywhere.
+
+---
+
 ## 1. The formula in plain words
 
 ### Step 1: Build a taste profile from the user's own rows
 
-1. **Find the user's baseline.** Take the average of their ratings, but pull it toward 3.5 as if they had also given two extra 3.5★ ratings:
-   `mu = (sum of ratings + 7) / (number of ratings + 2)`.
-   A brand-new user's baseline is 3.5. A user who rated two movies 5★ has a baseline of 4.25, not 5.
+1. **Find the user's baseline.** Take the average of their ratings, but pull it toward 7 as if they had also given two extra ratings of 7:
+   `mu = (sum of ratings + 14) / (number of ratings + 2)`.
+   A brand-new user's baseline is 7. A user who rated two movies 10/10 has a baseline of 8.5, not 10.
 2. **Turn each touched movie into a weight `w`.** Rules are checked in this order, and the first match wins:
    - **Rated:** `(rating − mu) − 0.5 × offset` (see the next step). Above your baseline is positive, below is negative.
-   - **Not interested:** −1.0
-   - **Watched but not rated:** +0.3
-   - **On the watchlist:** +0.5
+   - **Not interested:** −2.0
+   - **Watched but not rated:** +0.6
+   - **On the watchlist:** +1.0
 3. **Adjust ratings for surprise.** A rating that agrees with a movie's reputation says less about you than one that doesn't. Loving The Godfather is what nearly everyone does; loving a poorly reviewed cult film, or shrugging at a classic, is distinctive.
-   - A movie's **reputation** is its crowd score on the 5-star scale minus the catalog's average: `movie_avg5 − catalog_avg5`. Here `movie_avg5` is the same vote-weighted rating used for quality, divided by 2, and `catalog_avg5` is the pool's average divided by 2.
+   - A movie's **reputation** is its crowd score minus the catalog's average: `movie_avg − catalog_avg`. Here `movie_avg` is the same vote-weighted rating used for quality (0–10), and `catalog_avg` is the pool's average vote.
    - The **offset** is that reputation *relative to the average reputation of everything you rated*. If all your favourites are acclaimed, none of them is penalized for it; only the ones more (or less) acclaimed than your usual are.
    - Rated weight = `(rating − mu) − 0.5 × offset`. Watched, watchlist and not-interested weights don't change.
    - This only reweights your own ratings. It never pushes a candidate you wouldn't like; finding films you might not have heard of stays the job of rarity and the Discovery slider.
 4. **Fade old signals.** Multiply `w` by `0.5^(days since updated_at / 180)`. Something you did six months ago counts half as much.
-5. **Cap any single movie's influence.** Clamp `w` to the range −1.5 … +1.5. No single movie can outweigh several others. Without this, a generous rater's rare 1★ (often −3 or worse against their baseline) would erase a whole genre.
+5. **Cap any single movie's influence.** Clamp `w` to the range −3 … +3. No single movie can outweigh several others. Without this, a generous rater's rare 2/10 (often −6 or worse against their baseline) would erase a whole genre.
 6. **Score every trait.** For each keyword, genre, director and cast member that appears in your movies:
    `A[trait] = (sum of w over your movies with that trait) / (number of those movies + 2)`.
    - The `+ 2` keeps a trait seen once from looking as certain as one seen ten times.
@@ -98,7 +111,7 @@ The first rule that applies wins:
 1. **Context outweighs taste.** If context contributed at least as much as keyword + genre + people combined, show the chosen context, e.g. "Under 90 min · Funny".
 2. **Cold start:** "Popular and highly rated".
 3. **Best anchor.** Among the movies you rated above your baseline, find the one sharing the most positively-scored keywords and genres with the candidate.
-   - If you rated it at least 1 star above its crowd score **and** its reputation is below the catalog average (an under-appreciated film you loved), show "You rated {title} higher than most viewers".
+   - If you rated it at least 2 points above its crowd score **and** its reputation is below the catalog average (an under-appreciated film you loved), show "You rated {title} higher than most viewers".
    - Otherwise show "Because you loved {title}: {its two best shared keywords}", padded with shared genres if needed.
 4. **Fallback:** "Matches your taste for {your best-liked genre on this movie}", or the cold-start text if there is none.
 
@@ -157,10 +170,10 @@ Calibration is skipped during cold start (< 3 ratings) and when no watched movie
 
 Genre affinity and the calibration target both learn from **how much** of a genre the user watches. Low ratings teach **which kind** to avoid through keywords, directors and cast, and never shrink the genre itself.
 
-- **Why:** someone who watches lots of comedies and pans half of them still wants comedies, just not those. Before this rule, every 1★ comedy lowered Comedy's genre affinity, so honest ratings pushed comedies out entirely.
+- **Why:** someone who watches lots of comedies and pans half of them still wants comedies, just not those. Before this rule, every 2/10 comedy lowered Comedy's genre affinity, so honest ratings pushed comedies out entirely.
 - **How:** `GENRE_NEGATIVE_LEARNING = false` leaves negative-weight movies out of genre affinity (sum and count, so they can't dilute it either), and the calibration target counts every watched movie regardless of rating.
 
-**Example: the eval's "Picky comedy fan"** watches 24 comedies. They love 12 offbeat ones (Wes Anderson, Edgar Wright, Monty Python, Lady Bird, Jojo Rabbit) at 4–5★ and pan 12 broad studio ones (Grown Ups, Click, Pixels, Ted 2, The Hangover II and III) at 1–2★.
+**Example: the eval's "Picky comedy fan"** watches 24 comedies. They love 12 offbeat ones (Wes Anderson, Edgar Wright, Monty Python, Lady Bird, Jojo Rabbit) at 8–10 and pan 12 broad studio ones (Grown Ups, Click, Pixels, Ted 2, The Hangover II and III) at 2–4.
 
 | | Comedy share of top 20 (genre credit) | Comedies in top 20 |
 |---|---|---|
@@ -175,14 +188,14 @@ The recommended comedies look like the loved ones, not the panned ones. Against 
 
 | Constant | Value | Why |
 |---|---|---|
-| `MU_PRIOR` | 3.5 | The midpoint of 0.5–5 is 2.75, but people mostly rate movies they chose to watch, so typical ratings sit higher. 3.5 is a neutral "liked it fine". |
-| `MU_PRIOR_COUNT` | 2 | Enough to stop one or two ratings from defining the baseline (one 5★ alone would make every later 5★ count as "average"), and small enough to fade after ~10 ratings. |
-| `WEIGHT_WATCHED_UNRATED` | +0.3 | Choosing to watch something is a mild positive signal, weaker than a rating a full star above the baseline (+1). |
-| `WEIGHT_WATCHLIST` | +0.5 | Actively saving a movie expresses interest, but it hasn't been confirmed by watching. It's stronger than a passive "watched" yet below a clearly liked rating. |
-| `WEIGHT_NOT_INTERESTED` | −1.0 | An explicit "no" is as strong as rating a movie one star below your baseline. |
-| `SURPRISE_BETA` | 0.5 | How much a movie's relative reputation moves a rating's weight. The offsets are small: reputations in the catalog run from −1.43 to +0.82 stars, so at 0.5 the surprise term is rarely more than ±0.4, while `rating − mu` spans several stars. That's enough to rank a distinctive love above a conventional one without overriding what the user said. Loved classics keep most of their weight ("0.5 keeps loved classics meaningful"), and with offsets measured against the user's own average, a fan of acclaimed films loses nothing at all. At 1.0 the surprise term could flip a 4★ into a negative. |
-| `CROWD_GAP_REASON_STARS` | 1 | "Higher than most viewers" should mean a real disagreement: a full star above the crowd. It also requires a below-average reputation. Without that, any 5★ on a film averaging 8.0/10 or less qualified, which was most 5★ ratings (7 of the comedy persona's 10 reasons) and replaced the more specific "Because you loved". |
-| `WEIGHT_CLIP` | 1.5 | Weights are clamped to ±1.5 after decay. A full star above the baseline (+1) passes untouched, and so do the fixed signals (±1, +0.5, +0.3). Only outliers are cut: a 1★ from someone whose baseline is 4+ would otherwise be −3 or worse and cancel three or more loved movies sharing a genre. With the clamp, the eval's sci-fi persona keeps a positive Science Fiction affinity (0.22 instead of 0.09). |
+| `MU_PRIOR` | 7 | Exactly double the old half-star value (3.5), which keeps behavior identical. The midpoint of 1–10 is 5.5, but people mostly rate movies they chose to watch, so typical ratings sit higher; 7 is a neutral "liked it fine" (the "Good" label). Separate from the user-facing label anchor (6), which moves nothing. |
+| `MU_PRIOR_COUNT` | 2 | Enough to stop one or two ratings from defining the baseline (one 10/10 alone would make every later 10/10 count as "average"), and small enough to fade after ~10 ratings. |
+| `WEIGHT_WATCHED_UNRATED` | +0.6 | Doubled from 0.3. Choosing to watch something is a mild positive signal, weaker than a rating two points above the baseline (+2). |
+| `WEIGHT_WATCHLIST` | +1.0 | Doubled from 0.5. Actively saving a movie expresses interest, but it hasn't been confirmed by watching. It's stronger than a passive "watched" yet below a clearly liked rating. |
+| `WEIGHT_NOT_INTERESTED` | −2.0 | Doubled from −1.0. An explicit "no" is as strong as rating a movie two points below your baseline. |
+| `SURPRISE_BETA` | 0.5 | How much a movie's relative reputation moves a rating's weight. Unitless, so it is unchanged. The offsets are small: reputations in the catalog run from −2.86 to +1.64 points, so at 0.5 the surprise term is rarely more than ±0.8, while `rating − mu` spans several points. That's enough to rank a distinctive love above a conventional one without overriding what the user said. Loved classics keep most of their weight ("0.5 keeps loved classics meaningful"), and with offsets measured against the user's own average, a fan of acclaimed films loses nothing at all. At 1.0 the surprise term could flip an 8/10 into a negative. |
+| `CROWD_GAP_REASON_POINTS` | 2 | Doubled from 1 (renamed from `_STARS`). "Higher than most viewers" should mean a real disagreement: two points above the crowd. It also requires a below-average reputation. Without that, any 10/10 on a film averaging 8.0/10 or less qualified, which was most 10/10 ratings (7 of the comedy persona's 10 reasons) and replaced the more specific "Because you loved". |
+| `WEIGHT_CLIP` | 3.0 | Doubled from 1.5. Weights are clamped to ±3 after decay. Two points above the baseline (+2) passes untouched, and so do the fixed signals (±2, +1, +0.6). Only outliers are cut: a 2/10 from someone whose baseline is 8+ would otherwise be −6 or worse and cancel three or more loved movies sharing a genre. With the clamp, the eval's sci-fi persona keeps a positive Science Fiction affinity (0.44 instead of 0.18). |
 | `RECENCY_HALF_LIFE_DAYS` | 180 | Taste drifts slowly. Six months keeps last year's favourites relevant while letting this month's ratings lead. |
 | `GENRE_NEGATIVE_LEARNING` | false | Genre affinity learns from volume; dislikes teach keywords, directors and cast instead. See [Volume decides how much, ratings decide which kind](#volume-decides-how-much-ratings-decide-which-kind). |
 | `AFFINITY_PSEUDO_COUNT` | 2 | The same idea as the mean prior: a trait seen in one movie gets 1/3 of that movie's weight, not all of it, so single coincidences don't dominate. |
@@ -208,56 +221,64 @@ The recommended comedies look like the loved ones, not the panned ones. Against 
 | `DISCOVERY_MIN/MAX/DEFAULT` | 0 / 100 / 50 | The slider's range; the default is balanced. |
 | `EXPLAIN_SHARED_TERMS` | 2 | Two concrete shared terms are specific enough to be convincing and short enough for a card. |
 
+### Why the move to 1–10 changed nothing
+
+Switching scales is a pure rescale: every rating, and every constant that lives in rating units, was multiplied by exactly 2, and nothing else was touched.
+
+- **Doubled (rating units):** `MU_PRIOR` 3.5 → 7, `WEIGHT_WATCHED_UNRATED` 0.3 → 0.6, `WEIGHT_WATCHLIST` 0.5 → 1.0, `WEIGHT_NOT_INTERESTED` −1.0 → −2.0, `WEIGHT_CLIP` 1.5 → 3.0, `CROWD_GAP_REASON_POINTS` 1 → 2. The crowd score and the surprise offset used to be divided by 2 to meet half-star ratings; they now use TMDB's 0–10 value directly, which is the same doubling.
+- **Left alone (unitless or already 0–10):** `MU_PRIOR_COUNT`, `AFFINITY_PSEUDO_COUNT`, `CAST_WEIGHT`, `SURPRISE_BETA` (it multiplies an offset that doubled with everything else), `RECENCY_HALF_LIFE_DAYS`, `CALIBRATION_*`, `BAYES_MIN_VOTES`, `QUALITY_FLOOR` and `QUALITY_CEIL` (they act on TMDB's own 0–10 average).
+- **Why the ranking is identical:** `mu`, every `rating − mu`, every surprise term, every clamp and every fixed weight is exactly twice its old value, and decay is a multiplier. So every profile weight `w` doubles, and so does every trait affinity `Σw / (count + 2)`. Candidate scoring only uses affinities through min-max normalization (`(x − min) / (max − min)`), which cancels a common factor, and through their sign (`> 0`). Calibration and rarity never read a rating. So every feature value, score, reason and genre mix is unchanged; only the raw affinities and weights shown in `--detail` and `?debug=1` are 2× larger. Doubling is exact in floating point, so the eval output matched `scripts/eval-baseline.txt` line for line.
+
 ---
 
 ## 3. Worked example: Gravity for the sci-fi persona
 
-Reproduce with `npm run eval -- --detail=49047`. The numbers depend on the catalog as seeded (2026-10-08); a reseed changes popularity and vote counts. Recomputed 2026-10-15 for the genre rule. Values are shown to 4 decimals, so the last digit can differ by rounding.
+Reproduce with `npm run eval -- --detail=49047`. The numbers depend on the catalog as seeded (2026-10-08); a reseed changes popularity and vote counts. Recomputed on the 1–10 scale (T29); every weight and affinity is exactly twice its half-star value and every feature, score and reason is unchanged. Values are shown to 4 decimals, so the last digit can differ by rounding.
 
 **The persona** ("Cerebral sci-fi fan", all ratings made "now", so no decay):
-Interstellar 5, Arrival 5, Blade Runner 2049 4.5, Inception 4.5, 2001: A Space Odyssey 5, Ex Machina 4.5, Contact 4, Annihilation 4, The Martian 4, Transformers 1.
+Interstellar 10, Arrival 10, Blade Runner 2049 9, Inception 9, 2001: A Space Odyssey 10, Ex Machina 9, Contact 8, Annihilation 8, The Martian 8, Transformers 2.
 
 ### Step 1: Profile
 
-- `mu = (41.5 + 7) / (10 + 2) = 48.5 / 12 = 4.0417`
-- `catalog_avg5 = 7.0042 / 2 = 3.5021`
-- **Reputations.** `movie_avg5` is the vote-weighted rating ÷ 2, and reputation = movie_avg5 − 3.5021. Their mean over the 10 rated movies is 2.9341 / 10 = **0.2934**: this user mostly rates well-regarded films.
-- **Weights:** `w = clamp((rating − mu) − 0.5 × (reputation − 0.2934), ±1.5)`.
+- `mu = (83 + 14) / (10 + 2) = 97 / 12 = 8.0833`
+- `catalog_avg = 7.0042` (the pool's mean vote, used directly)
+- **Reputations.** `movie_avg` is the vote-weighted rating, and reputation = movie_avg − 7.0042. Their mean over the 10 rated movies is 5.868 / 10 = **0.5868**: this user mostly rates well-regarded films.
+- **Weights:** `w = clamp((rating − mu) − 0.5 × (reputation − 0.5868), ±3)`.
 
-  | Movie | Rating | movie_avg5 | Reputation | Offset | rating − mu | w |
+  | Movie | Rating | movie_avg | Reputation | Offset | rating − mu | w |
   |---|---|---|---|---|---|---|
-  | Interstellar | 5 | 4.2324 | 0.7303 | 0.4369 | 0.9583 | 0.9583 − 0.2185 = **0.7399** |
-  | Arrival | 5 | 3.7858 | 0.2837 | −0.0097 | 0.9583 | **0.9632** |
-  | Blade Runner 2049 | 4.5 | 3.7823 | 0.2802 | −0.0132 | 0.4583 | **0.4650** |
-  | Inception | 4.5 | 4.1831 | 0.6810 | 0.3876 | 0.4583 | **0.2645** |
-  | 2001: A Space Odyssey | 5 | 3.9645 | 0.4624 | 0.1690 | 0.9583 | **0.8738** |
-  | Ex Machina | 4.5 | 3.7810 | 0.2789 | −0.0145 | 0.4583 | **0.4656** |
-  | Contact | 4 | 3.7101 | 0.2080 | −0.0854 | −0.0417 | **0.0010** |
-  | Annihilation | 4 | 3.2736 | −0.2285 | −0.5219 | −0.0417 | −0.0417 + 0.2610 = **0.2193** |
-  | The Martian | 4 | 3.8348 | 0.3327 | 0.0393 | −0.0417 | **−0.0613** |
-  | Transformers | 1 | 3.4075 | −0.0946 | −0.3880 | −3.0417 | −2.8477, **clamped to −1.5000** |
+  | Interstellar | 10 | 8.4647 | 1.4605 | 0.8737 | 1.9167 | 1.9167 − 0.4369 = **1.4798** |
+  | Arrival | 10 | 7.5716 | 0.5674 | −0.0194 | 1.9167 | **1.9264** |
+  | Blade Runner 2049 | 9 | 7.5645 | 0.5603 | −0.0265 | 0.9167 | **0.9299** |
+  | Inception | 9 | 8.3663 | 1.3621 | 0.7752 | 0.9167 | **0.5290** |
+  | 2001: A Space Odyssey | 10 | 7.9289 | 0.9247 | 0.3379 | 1.9167 | **1.7477** |
+  | Ex Machina | 9 | 7.5619 | 0.5577 | −0.0291 | 0.9167 | **0.9312** |
+  | Contact | 8 | 7.4203 | 0.4161 | −0.1707 | −0.0833 | **0.0020** |
+  | Annihilation | 8 | 6.5472 | −0.4570 | −1.0438 | −0.0833 | −0.0833 + 0.5219 = **0.4386** |
+  | The Martian | 8 | 7.6696 | 0.6654 | 0.0786 | −0.0833 | **−0.1226** |
+  | Transformers | 2 | 6.8150 | −0.1892 | −0.7760 | −6.0833 | −5.6953, **clamped to −3.0000** |
 
   - Inception and Interstellar are this user's most acclaimed picks, so their weights shrink the most.
-  - Annihilation is a weaker-reviewed film the user still gave 4★, so it turns from a faint negative into a positive.
-  - Transformers is the only weight beyond ±1.5, so it's the only one the clamp changes.
+  - Annihilation is a weaker-reviewed film the user still gave 8/10, so it turns from a faint negative into a positive.
+  - Transformers is the only weight beyond ±3, so it's the only one the clamp changes.
 - **Gravity's keywords** (`A = Σw / (count + 2)`):
 
   | Keyword | Carried by | A |
   |---|---|---|
-  | astronaut | Interstellar, 2001, The Martian | (0.7399 + 0.8738 − 0.0613) / 5 = **0.3105** |
-  | space station | Interstellar, 2001 | 1.6137 / 4 = **0.4034** |
-  | space | Interstellar, The Martian | 0.6786 / 4 = **0.1696** |
-  | space mission | 2001 | 0.8738 / 3 = **0.2913** |
-  | hopeful | Arrival | 0.9632 / 3 = **0.3211** |
-  | loss | Arrival | 0.9632 / 3 = **0.3211** |
+  | astronaut | Interstellar, 2001, The Martian | (1.4798 + 1.7477 − 0.1226) / 5 = **0.6210** |
+  | space station | Interstellar, 2001 | 3.2275 / 4 = **0.8069** |
+  | space | Interstellar, The Martian | 1.3572 / 4 = **0.3393** |
+  | space mission | 2001 | 1.7477 / 3 = **0.5826** |
+  | hopeful | Arrival | 1.9264 / 3 = **0.6421** |
+  | loss | Arrival | 1.9264 / 3 = **0.6421** |
   | reflective | none | **0** |
   | trapped in space | none | **0** |
 
-- **Gravity's genres.** Genres skip negative weights, so The Martian (−0.0613) and Transformers (−1.5) are left out:
+- **Gravity's genres.** Genres skip negative weights, so The Martian (−0.1226) and Transformers (−3) are left out:
   - Drama is carried by Interstellar, Arrival, BR2049, Ex Machina and Contact:
-    `(0.7399 + 0.9632 + 0.4650 + 0.4656 + 0.0010) / (5 + 2) = 2.6347 / 7 = 0.3764`.
+    `(1.4798 + 1.9264 + 0.9299 + 0.9312 + 0.0020) / (5 + 2) = 5.2693 / 7 = 0.7528`.
   - Science Fiction is carried by the eight positively weighted movies:
-    `3.9923 / (8 + 2) = 0.3992`. Before this rule Transformers' −1.5 counted, and it was 0.2026.
+    `7.9846 / (8 + 2) = 0.7985`. Before this rule Transformers' −3 counted, and it was 0.4052.
   - Thriller: no rated movie, **0**.
 - **People:** Alfonso Cuarón, Sandra Bullock, George Clooney and Ed Harris appear in none of the rated movies, so all are 0.
 - **`pUser = 0.8087`.** The persona's positively weighted movies are mostly very popular ones. Annihilation and Contact now count as positive too, which lowers it from 0.89.
@@ -266,9 +287,9 @@ Interstellar 5, Arrival 5, Blade Runner 2049 4.5, Inception 4.5, 2001: A Space O
 
 | Feature | Raw | Pool min / max | Feature value |
 |---|---|---|---|
-| keyword | (0.3105 + 0.3211 + 0.3211 + 0 + 0.1696 + 0.2913 + 0.4034 + 0) / √8 = 1.8170 / 2.8284 = **0.6424** | −0.5944 / 0.6424 | Gravity *is* the max, so **1.0000** |
-| genre | (0.3764 + 0.3992 + 0) / 3 = **0.2585** | 0 / 0.3992 | 0.2585 / 0.3992 = **0.6476** (no genre affinity is negative any more, so the pool minimum is 0) |
-| people | 0 + 0 = **0** | −0.6667 / 0.3829 | 0.6667 / 1.0496 = **0.6352** |
+| keyword | (0.6210 + 0.6421 + 0.6421 + 0 + 0.3393 + 0.5826 + 0.8069 + 0) / √8 = 3.6340 / 2.8284 = **1.2848** | −1.1888 / 1.2848 | Gravity *is* the max, so **1.0000** |
+| genre | (0.7528 + 0.7985 + 0) / 3 = **0.5171** | 0 / 0.7985 | 0.5171 / 0.7985 = **0.6476** (no genre affinity is negative any more, so the pool minimum is 0) |
+| people | 0 + 0 = **0** | −1.3333 / 0.7658 | 1.3333 / 2.0991 = **0.6352** |
 | quality | R = 7.2, v = 16 736, C = 7.0042: WR = (16736 / 17736)·7.2 + (1000 / 17736)·7.0042 = 6.7940 + 0.3949 = **7.1890** | maps 5 → 0, 9 → 1 | (7.1890 − 5) / 4 = **0.5472** |
 | rarity | Gravity's popularity percentile = 0.6093; target = pUser = 0.8087 | — | 1 − 0.1994 = **0.8007** |
 
@@ -289,18 +310,18 @@ After calibration, Gravity is #8 of the persona's top 10.
 
 ### Reason
 
-Among the anchors (movies with w > 0 that were rated), Interstellar has the largest overlap with Gravity: space station 0.4034 + astronaut 0.3105 + space 0.1696 + Drama 0.3764 + Science Fiction 0.3992 = 1.6591. Next is Arrival at 1.4178 (hopeful, loss, Drama, Science Fiction), then 2001 at 1.4044 (no Drama).
+Among the anchors (movies with w > 0 that were rated), Interstellar has the largest overlap with Gravity: space station 0.8069 + astronaut 0.6210 + space 0.3393 + Drama 0.7528 + Science Fiction 0.7985 = 3.3185. Next is Arrival at 2.8355 (hopeful, loss, Drama, Science Fiction), then 2001 at 2.8090 (no Drama).
 
-Interstellar's reputation is +0.73, well above average, so the crowd-gap wording doesn't apply. Its two best shared keywords are space station (0.4034) and astronaut (0.3105).
+Interstellar's reputation is +1.46, well above average, so the crowd-gap wording doesn't apply. Its two best shared keywords are space station (0.8069) and astronaut (0.6210).
 → **"Because you loved Interstellar: space station, astronaut"**
 
 ---
 
 ## 4. Behaviours worth knowing
 
-- **Outliers are capped, not ignored.** Before `WEIGHT_CLIP`, the sci-fi persona's single Transformers 1★ (w −3.04) cut Science Fiction to 0.09. Its top 10 drifted to acclaimed dramas: **3/10 sci-fi**. With the clamp, the 1★ still counted (−1.5, the strongest negative allowed) but couldn't outvote the loved films: **7/10 sci-fi**, the other three from Drama.
-- **Now the 1★ teaches keywords, not genre, and calibration keeps the mix.** With genre learning from positives only, Science Fiction is 0.40 (robot and Michael Bay stay negative). Calibration then pulls the top 20 from 43% Drama to 25%, against a 22% target. The top 10 is **10/10 sci-fi**: A.I., The Prestige, Project Hail Mary, Planet of the Apes, Moon, Dune, The Thing, Gravity, The Force Awakens, Blade Runner.
-- **Surprise weights reward distinctive opinions, measured against the user's own taste.** The first version measured reputation against the catalog only. That shrank every love of a fan of acclaimed films: Interstellar fell from +0.96 to +0.59, the 1★ outlier dominated again, and the sci-fi persona dropped from 7/10 to 4/10 sci-fi. Measuring against the user's own average keeps that persona at 7/10, while the contrarian's cult loves still count fully. In the eval, each persona's top 10 shares 9 of 10 titles with the pre-surprise version:
+- **Outliers are capped, not ignored.** Before `WEIGHT_CLIP`, the sci-fi persona's single Transformers 2/10 (w −6.08) cut Science Fiction to 0.18. Its top 10 drifted to acclaimed dramas: **3/10 sci-fi**. With the clamp, the 2/10 still counted (−3, the strongest negative allowed) but couldn't outvote the loved films: **7/10 sci-fi**, the other three from Drama.
+- **Now the 2/10 teaches keywords, not genre, and calibration keeps the mix.** With genre learning from positives only, Science Fiction is 0.80 (robot and Michael Bay stay negative). Calibration then pulls the top 20 from 43% Drama to 25%, against a 22% target. The top 10 is **10/10 sci-fi**: A.I., The Prestige, Project Hail Mary, Planet of the Apes, Moon, Dune, The Thing, Gravity, The Force Awakens, Blade Runner.
+- **Surprise weights reward distinctive opinions, measured against the user's own taste.** The first version measured reputation against the catalog only. That shrank every love of a fan of acclaimed films: Interstellar fell from +1.92 to +1.18, the 2/10 outlier dominated again, and the sci-fi persona dropped from 7/10 to 4/10 sci-fi. Measuring against the user's own average keeps that persona at 7/10, while the contrarian's cult loves still count fully. In the eval, each persona's top 10 shares 9 of 10 titles with the pre-surprise version:
   - Sci-fi: 12 Angry Men → The Passion of the Christ, a weak Drama-driven pick at #9.
   - Comedy: The Good Dinosaur → Paddington.
   - Horror: Nightcrawler → Insidious: Chapter 2.
@@ -308,7 +329,7 @@ Interstellar's reputation is +0.73, well above average, so the crowd-gap wording
 
   "You rated … higher than most viewers" appears only for the contrarian, on all 10 of its results: Hackers, Mandy, Jupiter Ascending, Speed Racer.
 - **Features are relative to the candidate set.** Min-max rescaling means a feature value says "how this compares with the other candidates", not an absolute strength. When a few movies score very negatively (sequels to a hated movie), an unrelated movie sits around 0.7 rather than 0. That's why Gravity's people feature is 0.62 even though nothing matched.
-- **A generous rater's 4★ is slightly negative,** because it is below their own baseline. Ratings are read relative to the user, not the scale.
+- **A generous rater's 8/10 is slightly negative,** because it is below their own baseline. Ratings are read relative to the user, not the scale.
 - **"Niche" means niche among the 2000 most-voted movies.** Surprise Me finds lesser-known films within well-known ones, not obscurities.
 - **Recommend has no director cap.** Context already varies the list. With "Show more" reaching 30 results, a cap may become worth adding.
 - **For You is computed per request.** A rating made on For You removes that movie from the row immediately (client-side), and the full list re-scores on the next visit.
@@ -316,10 +337,10 @@ Interstellar's reputation is +0.73, well above average, so the crowd-gap wording
 ## 5. Tests and evaluation
 
 - **`npm test`** (vitest): recommender tests in `lib/recommender/__tests__/`, plus the For You chart stats and the user-state rules. They cover:
-  - mean shrinkage, weight rules, recency and the ±1.5 weight clamp
-  - surprise weights: the spec values (+0.475, +1.15, −1.55 before the clamp, −1.5 after), decay before the clamp, offsets relative to the user's own ratings, and the crowd-gap reason
+  - mean shrinkage, weight rules, recency and the ±3 weight clamp
+  - surprise weights: the spec values (+0.95, +2.3, −3.1 before the clamp, −3 after), decay before the clamp, offsets relative to the user's own ratings, and the crowd-gap reason
   - the Interstellar/Martian/Transformers case
-  - 8 sci-fi films at 5★ plus a 1★ keep Science Fiction clearly positive
+  - 8 sci-fi films at 10/10 plus a 2/10 keep Science Fiction clearly positive
   - cast handling and the popularity percentile
   - normalization and the Bayesian rating
   - cold-start renormalization
@@ -328,10 +349,10 @@ Interstellar's reputation is +0.73, well above average, so the crowd-gap wording
   - determinism: shuffled inputs give an identical output
   - result diagnostics (excluded, time filter, director cap), and a larger limit extending the same list
   - calibration: the target from 30 comedies + 10 crime films, a disliked comedy still raising comedy's target, a 20-item list landing at 0.75 ± 0.1 comedy, λ = 0 equal to score order, and determinism on shuffled input
-  - genre learning from volume: three 1★ comedies don't lower Comedy affinity or its calibration share, but do push their keywords and director negative
+  - genre learning from volume: three 2/10 comedies don't lower Comedy affinity or its calibration share, but do push their keywords and director negative
 - **`npm run eval`:** six personas on real catalog ids:
   - sci-fi, comedy/animation and horror/thriller (10 ratings each)
-  - a contrarian who rates six acclaimed classics 3★ and six cult films 5★
+  - a contrarian who rates six acclaimed classics 6/10 and six cult films 10/10
   - "Comedy 30 / Crime 10": 40 watched movies, 14 of them rated
   - "Picky comedy fan": 24 comedies, half loved and half panned
 

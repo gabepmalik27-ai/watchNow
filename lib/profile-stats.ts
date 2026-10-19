@@ -1,3 +1,4 @@
+import { RATING_VALUES } from "@/lib/rating-scale";
 import type { UserMovie } from "@/types/movie";
 
 /**
@@ -5,12 +6,12 @@ import type { UserMovie } from "@/types/movie";
  * rows and the genres of those movies and return what the charts draw.
  */
 
-/** A genre needs this many ratings before its average is ranked (one 5★ isn't a favourite genre). */
+/** A genre needs this many ratings before its average is ranked (one 10/10 isn't a favourite genre). */
 export const TOP_GENRES_MIN_RATINGS = 2;
 /** Bars shown in each genre chart. */
 export const GENRE_CHART_LIMIT = 6;
-/** The rating scale, 0.5–5.0 in half stars: one histogram column each. */
-export const RATING_STEPS = Array.from({ length: 10 }, (_, i) => (i + 1) / 2);
+/** The rating scale, 1–10: one histogram column each. */
+export const RATING_STEPS: readonly number[] = RATING_VALUES;
 
 export type GenreAverage = { genre: string; average: number; count: number };
 export type GenreCount = { genre: string; count: number };
@@ -58,7 +59,7 @@ export function genresByWatchCount(
     .slice(0, limit);
 }
 
-/** How many ratings fall on each half-star step, 0.5 → 5.0 (all ten steps, zeros included). */
+/** How many ratings fall on each value, 1 → 10 (all ten, zeros included). */
 export function ratingDistribution(userMovies: readonly UserMovie[]): RatingBucket[] {
   const counts = new Map(RATING_STEPS.map((rating) => [rating, 0]));
   for (const um of userMovies) {

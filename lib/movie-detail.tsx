@@ -11,6 +11,7 @@ import {
 } from "react";
 import { MovieDetailDialog, type DetailMode } from "@/components/movie/MovieDetailDialog";
 import { Toast } from "@/components/ui/Toast";
+import { formatUserRating, ratingLabel } from "@/lib/rating-scale";
 import { getCachedMovie, rememberMovies } from "@/lib/use-movies-by-ids";
 import { useUserState } from "@/lib/user-state";
 import type { CatalogMovie } from "@/types/movie";
@@ -86,8 +87,8 @@ export function MovieDetailProvider({ children }: { children: ReactNode }) {
           lastRating.kind === "removed"
             ? "Rating removed"
             : toastMovie
-              ? `Rated ${toastMovie.title} ★${lastRating.rating.toFixed(1)}`
-              : `Rated ★${lastRating.rating.toFixed(1)}`
+              ? `Rated ${toastMovie.title} ${formatUserRating(lastRating.rating)} · ${ratingLabel(lastRating.rating)}`
+              : `Rated ${formatUserRating(lastRating.rating)} · ${ratingLabel(lastRating.rating)}`
         }
         actionLabel="Undo"
         onAction={undoLastRating}

@@ -5,24 +5,29 @@
 
 // ─── Taste profile (profile.ts) ─────────────────────────────────────────────
 
-/** Rating the user's mean is shrunk toward: the middle of the 0.5–5 scale, nudged up because people mostly rate movies they chose to watch. */
-export const MU_PRIOR = 3.5;
-/** Pseudo-ratings of MU_PRIOR added to the user's mean: mu = (Σr + 3.5·2) / (n + 2). */
+/**
+ * Rating the user's mean is shrunk toward, on the 1–10 scale. Exact double of
+ * the old half-star value (3.5), which keeps behavior identical; separate from
+ * the user-facing RATING_AVERAGE_ANCHOR (6) in lib/rating-scale.ts, which is
+ * only a label.
+ */
+export const MU_PRIOR = 7;
+/** Pseudo-ratings of MU_PRIOR added to the user's mean: mu = (Σr + 7·2) / (n + 2). */
 export const MU_PRIOR_COUNT = 2;
 
 /** Base weight of a watched but unrated movie. */
-export const WEIGHT_WATCHED_UNRATED = 0.3;
+export const WEIGHT_WATCHED_UNRATED = 0.6;
 /** Base weight of a movie on the watchlist (and not watched). */
-export const WEIGHT_WATCHLIST = 0.5;
+export const WEIGHT_WATCHLIST = 1.0;
 /** Base weight of a movie marked "not interested". */
-export const WEIGHT_NOT_INTERESTED = -1.0;
+export const WEIGHT_NOT_INTERESTED = -2.0;
 
 /**
  * Each movie's weight is clamped to [−WEIGHT_CLIP, +WEIGHT_CLIP] after the
  * recency decay, before affinities. No single movie can outweigh several
- * others; generous raters' rare 1★ would otherwise erase a whole genre.
+ * others; generous raters' rare 1/10 would otherwise erase a whole genre.
  */
-export const WEIGHT_CLIP = 1.5;
+export const WEIGHT_CLIP = 3.0;
 
 /**
  * Whether negative movie weights lower GENRE affinity. Off: a genre's
@@ -39,7 +44,7 @@ export const GENRE_NEGATIVE_LEARNING: boolean = false;
  * Ratings far from a movie's reputation carry more taste information; 0.5
  * keeps loved classics meaningful. A rated movie's base weight is
  * (rating − mu) − SURPRISE_BETA × offset, where offset is the movie's
- * reputation (movie_avg5 − catalog_avg5) relative to the average reputation of
+ * reputation (movie_avg − catalog_avg) relative to the average reputation of
  * everything the user rated. Measuring it against the user's own ratings keeps
  * a fan of acclaimed films from having every love shrunk at once.
  */
@@ -216,9 +221,9 @@ export const DISCOVERY_DEFAULT = 50;
 /** Shared keywords/genres named in a "Because you loved …" reason. */
 export const EXPLAIN_SHARED_TERMS = 2;
 /**
- * An anchor rated at least this many stars above its crowd score (movie_avg5),
+ * An anchor rated at least this many points above its crowd score (movie_avg),
  * whose reputation is below the catalog average, is explained as "You rated
  * {title} higher than most viewers": an under-appreciated film the user loved.
  */
-export const CROWD_GAP_REASON_STARS = 1;
+export const CROWD_GAP_REASON_POINTS = 2;
 export const REASON_COLD_START = "Popular and highly rated";

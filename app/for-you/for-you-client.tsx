@@ -11,11 +11,11 @@ import { DiagnosticsPanel } from "@/components/ui/DiagnosticsPanel";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Panel } from "@/components/ui/Panel";
 import { PersonalizePrompt } from "@/components/ui/PersonalizePrompt";
-import { StarRating } from "@/components/ui/StarRating";
+import { RatingControl } from "@/components/ui/RatingControl";
 import { StatCard } from "@/components/ui/StatCard";
 import { Tabs, type TabItem } from "@/components/ui/Tabs";
 import { useAuth } from "@/lib/auth";
-import { formatAudienceRating } from "@/lib/format";
+import { formatAudienceRating, formatUserRating, ratingTendency } from "@/lib/rating-scale";
 import type { RecommendationResponse, RecommendedMovie } from "@/lib/recommender";
 import { useMoviesByIds } from "@/lib/use-movies-by-ids";
 import { useUserState } from "@/lib/user-state";
@@ -44,7 +44,7 @@ const ACTIVITY_LIMIT = 5;
 
 /** Describes a movie's current state; null when nothing is set (e.g. removed from watchlist). */
 function describeActivity(userMovie: UserMovie, title: string): string | null {
-  if (userMovie.rating !== null) return `Rated ${title} ★${userMovie.rating.toFixed(1)}`;
+  if (userMovie.rating !== null) return `Rated ${title} ${formatUserRating(userMovie.rating)}`;
   if (userMovie.watched) return `Marked ${title} watched`;
   if (userMovie.on_watchlist) return `Added ${title} to watchlist`;
   if (userMovie.not_interested) return `Marked ${title} not interested`;
@@ -64,7 +64,6 @@ export function ForYouClient({ recommendations, debug }: ForYouClientProps) {
   const {
     userMovies,
     getUserMovie,
-    setRating,
     toggleWatchlist,
     watchedCount,
     ratedCount,
@@ -87,7 +86,8 @@ export function ForYouClient({ recommendations, debug }: ForYouClientProps) {
   const displayWatched = loaded ? watchedCount : "–";
   const displayRated = loaded ? ratedCount : "–";
   const displayWatchlist = loaded ? watchlistCount : "–";
-  const displayAvg = loaded && ratedCount > 0 ? averageRating.toFixed(1) : "–";
+  const hasAvg = loaded && ratedCount > 0;
+  const displayAvg = hasAvg ? `${averageRating.toFixed(1)}/10` : "–";
 
   // Most recent first: array order is oldest -> newest touched.
   const ratedUserMovies = userMovies.filter((um) => um.rating !== null).reverse();
@@ -134,7 +134,11 @@ export function ForYouClient({ recommendations, debug }: ForYouClientProps) {
         <div className="grid grid-cols-2 gap-4 tablet:grid-cols-4">
           <StatCard value={displayWatched} label="Watched" />
           <StatCard value={displayRated} label="Rated" />
-          <StatCard value={displayAvg} label="Avg rating" />
+          <StatCard
+            value={displayAvg}
+            label="Avg rating"
+            sublabel={hasAvg ? ratingTendency(averageRating) : undefined}
+          />
           <StatCard value={displayWatchlist} label="Watchlist" />
         </div>
 
@@ -183,12 +187,10 @@ export function ForYouClient({ recommendations, debug }: ForYouClientProps) {
                       ) : null}
                     </span>
                   </MovieDetailButton>
-                  <StarRating
-                    value={userMovie.rating}
-                    onChange={(value) => setRating(movie.id, value)}
-                    label={`Rate ${movie.title}`}
-                    size="sm"
-                  />
+                  {/* Read-only: ten 44px targets don't fit a poster card. Open the movie to change it. */}
+                  <span className="px-1">
+                    <RatingControl value={userMovie.rating} label={movie.title} />
+                  </span>
                 </div>
               ))}
             </div>
@@ -213,8 +215,7 @@ export function ForYouClient({ recommendations, debug }: ForYouClientProps) {
                       <span className="truncate text-sm font-medium text-text">{movie.title}</span>
                       <span className="text-xs text-muted">
                         {movie.release_year !== null ? `${movie.release_year} · ` : null}
-                        <span className="text-rating">★</span>{" "}
-                        {formatAudienceRating(movie.vote_average)}
+                        <span className="text-rating">{formatAudienceRating(movie.vote_average)}</span>
                       </span>
                     </span>
                   </MovieDetailButton>

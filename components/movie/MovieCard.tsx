@@ -2,7 +2,7 @@
 
 import { MovieDetailButton } from "@/components/movie/MovieDetailButton";
 import { PosterBlock } from "@/components/movie/PosterBlock";
-import { formatAudienceRating } from "@/lib/format";
+import { formatAudienceRating } from "@/lib/rating-scale";
 import type { CatalogMovie } from "@/types/movie";
 
 type MovieCardProps = {
@@ -25,15 +25,13 @@ export function MovieCard({ movie, className }: MovieCardProps) {
               <span aria-hidden="true">·</span>
             </>
           ) : null}
-          <span className="text-rating" aria-hidden="true">
-            ★
-          </span>
           <span
             aria-label={
               movie.vote_average === null
                 ? "No audience rating"
-                : `Rated ${displayRating} out of 5`
+                : `Audience rating ${displayRating.replace("/10", "")} out of 10`
             }
+            className="text-rating"
           >
             {displayRating}
           </span>

@@ -38,7 +38,7 @@ If a task seems to require something out of scope, stop and flag it instead of b
 
 1. **No play buttons.** Nothing in the UI may imply a movie can be watched inside WatchNow. Streaming provider elements are outbound links only.
 2. **Brand is "WatchNow"** everywhere — UI text, page titles, metadata, route names, mock data, alt text, README. Never "WatchNext".
-3. **Ratings are 0.5–5.0 in half-star increments.** Not 1–5.
+3. **Ratings are integers 1–10 with labels** (`lib/rating-scale.ts`). No half steps, no stars.
 4. **`Watched` and `Rated` are independent states.** A movie can be watched but unrated. Never couple them in a single boolean.
 5. **`types/movie.ts` is the data contract.** The Supabase schema and any placeholder data use its field names. Do not rename fields for convenience. Map TMDB fields to this shape at ingestion; components never see raw TMDB responses.
 6. **Posters come from TMDB via `lib/tmdb-image.ts`;** the flat color block (generated deterministically from movie id) is only the fallback when `poster_path` is null.

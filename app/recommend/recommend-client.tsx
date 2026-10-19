@@ -8,7 +8,7 @@ import { DiagnosticsPanel } from "@/components/ui/DiagnosticsPanel";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterChip } from "@/components/ui/FilterChip";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { formatAudienceRating } from "@/lib/format";
+import { formatAudienceRating } from "@/lib/rating-scale";
 import type {
   CalibrationInfo,
   RankDiagnostics,
@@ -87,7 +87,7 @@ function BreakdownPanel({ breakdown }: { breakdown: ScoreBreakdown }) {
         </tbody>
       </table>
       <p className="mt-2">
-        raw kw {fmt(breakdown.raw.keyword)} · genre {fmt(breakdown.raw.genre)} · people{" "}
+        raw taste matches (affinities on the 1–10 rating scale): kw {fmt(breakdown.raw.keyword)} · genre {fmt(breakdown.raw.genre)} · people{" "}
         {fmt(breakdown.raw.people)}
       </p>
       <p>
@@ -284,8 +284,7 @@ export function RecommendClient({ debug }: RecommendClientProps) {
                       <span className="text-xs text-muted">
                         {movie.release_year !== null ? `${movie.release_year} · ` : null}
                         {movie.runtime_min !== null ? `${movie.runtime_min} min · ` : null}
-                        <span className="text-rating">★</span>{" "}
-                        {formatAudienceRating(movie.vote_average)}
+                        <span className="text-rating">{formatAudienceRating(movie.vote_average)}</span>
                       </span>
                     </span>
                   </MovieDetailButton>

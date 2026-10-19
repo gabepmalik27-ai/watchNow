@@ -17,13 +17,13 @@ const ratedInvariant = (m: UserMovie) => !(m.rating !== null && !m.watched);
 
 describe("watched never stays on the watchlist", () => {
   it("rating a watchlisted movie marks it watched and removes it from the watchlist", () => {
-    const next = applyRating(row({ on_watchlist: true }), ID, 4.5);
-    expect(next).toMatchObject({ rating: 4.5, watched: true, on_watchlist: false });
+    const next = applyRating(row({ on_watchlist: true }), ID, 9);
+    expect(next).toMatchObject({ rating: 9, watched: true, on_watchlist: false });
     expect(watchlistInvariant(next)).toBe(true);
   });
 
   it("rating a movie with no row creates a watched, rated row", () => {
-    expect(applyRating(undefined, ID, 3)).toEqual(row({ rating: 3, watched: true }));
+    expect(applyRating(undefined, ID, 6)).toEqual(row({ rating: 6, watched: true }));
   });
 
   it("marking a watchlisted movie watched removes it from the watchlist", () => {
@@ -45,15 +45,15 @@ describe("watched never stays on the watchlist", () => {
 
 describe("a rated movie is always watched", () => {
   it("un-marking watched on a rated movie is blocked", () => {
-    expect(applyToggleWatched(row({ rating: 4, watched: true }), ID)).toBeNull();
+    expect(applyToggleWatched(row({ rating: 8, watched: true }), ID)).toBeNull();
   });
 
   it("an unrated watched movie can still be un-marked", () => {
     expect(applyToggleWatched(row({ watched: true }), ID)).toEqual(row({ watched: false }));
   });
 
-  it("removing a rating clears the stars and keeps the movie watched", () => {
-    const before = row({ rating: 3.5, watched: true, not_interested: false });
+  it("removing a rating clears the rating and keeps the movie watched", () => {
+    const before = row({ rating: 7, watched: true, not_interested: false });
     expect(applyRemoveRating(before)).toEqual(row({ rating: null, watched: true }));
   });
 
@@ -63,9 +63,9 @@ describe("a rated movie is always watched", () => {
   });
 
   it("removing a rating doesn't touch the row it came from, so Undo can restore it", () => {
-    const before = row({ rating: 4.5, watched: true });
+    const before = row({ rating: 9, watched: true });
     applyRemoveRating(before);
-    expect(before).toEqual(row({ rating: 4.5, watched: true }));
+    expect(before).toEqual(row({ rating: 9, watched: true }));
   });
 });
 
@@ -76,11 +76,11 @@ describe("both invariants", () => {
       row({}),
       row({ on_watchlist: true }),
       row({ watched: true }),
-      row({ watched: true, rating: 2.5 }),
+      row({ watched: true, rating: 5 }),
     ];
     for (const state of states) {
       const results = [
-        applyRating(state, ID, 2),
+        applyRating(state, ID, 4),
         applyToggleWatched(state, ID),
         applyToggleWatchlist(state, ID),
         applyRemoveRating(state),

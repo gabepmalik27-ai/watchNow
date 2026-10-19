@@ -11,7 +11,7 @@ type BarChartProps = {
   /** One-sentence text alternative read before the bars. */
   summary: string;
   data: readonly ChartDatum[];
-  /** Value that fills the whole track (5 for ratings, the largest count for counts). */
+  /** Value that fills the whole track (10 for ratings, the largest count for counts). */
   max: number;
 };
 
