@@ -1,7 +1,7 @@
 import "server-only";
 
 import { getCatalogClient } from "@/lib/supabase-server";
-import type { CatalogMovie } from "@/types/movie";
+import type { CatalogMovie, SearchResult } from "@/types/movie";
 
 /**
  * The only module that queries public.movies. Everything else (server
@@ -64,17 +64,19 @@ export async function getMoviesByIds(ids: number[]): Promise<CatalogMovie[]> {
   return ids.map((id) => byId.get(id)).filter((movie): movie is CatalogMovie => Boolean(movie));
 }
 
-/** Escapes LIKE wildcards so user input matches literally. */
-function escapeLike(value: string): string {
-  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
-}
-
-/** Case-insensitive title match (served by the trigram index), most-voted first. */
-export async function searchMovies(q: string, genre?: string): Promise<CatalogMovie[]> {
-  let query = movies();
-  if (q) query = query.ilike("title", `%${escapeLike(q)}%`);
-  if (genre) query = query.contains("genres", [genre]);
-  return unwrap(await query.order("vote_count", DESC).limit(SEARCH_LIMIT));
+/**
+ * Ranked search through public.search_catalog: title tiers, then director and
+ * cast matches, with a trigram fallback for typos. Accents and punctuation
+ * are ignored.
+ */
+export async function searchMovies(q: string, genre?: string): Promise<SearchResult[]> {
+  return unwrap(
+    await getCatalogClient().rpc("search_catalog", {
+      q,
+      genre: genre ?? null,
+      max_results: SEARCH_LIMIT,
+    }),
+  );
 }
 
 /** The n most-voted movies: the pool Rate and Recommend filter from. */

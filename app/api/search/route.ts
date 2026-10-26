@@ -4,7 +4,11 @@ import { searchMovies } from "@/lib/catalog";
 const MAX_QUERY_LENGTH = 100;
 const MAX_GENRE_LENGTH = 50;
 
-/** GET /api/search?q=godfather&genre=Drama → up to 40 CatalogMovie, most-voted first. */
+/**
+ * GET /api/search?q=godfather&genre=Drama → up to 40 SearchResult, best match
+ * first (see search_catalog in supabase/migrations/0005_search.sql). Each row
+ * says why it matched: match_kind, plus match_person for director/cast hits.
+ */
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const q = (params.get("q") ?? "").trim();

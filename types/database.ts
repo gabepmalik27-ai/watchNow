@@ -1,4 +1,4 @@
-import type { Movie, Profile, UserMovieRow } from "@/types/movie";
+import type { Movie, Profile, SearchResult, UserMovieRow } from "@/types/movie";
 
 /**
  * Hand-written Supabase schema type for the tables WatchNow uses. Keeps
@@ -39,7 +39,12 @@ export type Database = {
         Relationships: [];
       };
     };
-    Functions: Record<string, never>;
+    Functions: {
+      search_catalog: {
+        Args: { q: string; genre?: string | null; max_results?: number };
+        Returns: SearchResult[];
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
