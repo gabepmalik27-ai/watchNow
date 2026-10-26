@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { rememberMovies } from "@/lib/use-movies-by-ids";
-import type { CatalogMovie } from "@/types/movie";
+import type { SearchResult } from "@/types/movie";
 
 export type MovieSearchState = {
   status: "idle" | "loading" | "done" | "error";
-  results: CatalogMovie[];
+  results: SearchResult[];
   /** The trimmed query the current results belong to. */
   query: string;
   genre: string | null;
@@ -15,7 +15,7 @@ export type MovieSearchState = {
 const IDLE: MovieSearchState = { status: "idle", results: [], query: "", genre: null };
 
 /**
- * Debounced title search against /api/search. Superseded requests are
+ * Debounced catalog search against /api/search. Superseded requests are
  * aborted, so a slow older response can never overwrite a newer one.
  */
 export function useMovieSearch(
@@ -41,7 +41,7 @@ export function useMovieSearch(
       try {
         const res = await fetch(`/api/search?${params}`, { signal: controller.signal });
         if (!res.ok) throw new Error(`Search failed: HTTP ${res.status}`);
-        const results = (await res.json()) as CatalogMovie[];
+        const results = (await res.json()) as SearchResult[];
         rememberMovies(results);
         setState({ status: "done", results, query: q, genre });
       } catch {

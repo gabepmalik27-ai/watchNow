@@ -36,6 +36,15 @@ export type CatalogMovie = Pick<
   | "top_cast"
 >;
 
+/**
+ * One row of public.search_catalog (supabase/migrations/0005_search.sql).
+ * match_person is the director or cast name behind a "director" / "cast" match.
+ */
+export type SearchResult = CatalogMovie & {
+  match_kind: "title" | "director" | "cast" | "fuzzy" | "genre";
+  match_person: string | null;
+};
+
 export type UserMovie = {
   movie_id: number;
   watched: boolean;

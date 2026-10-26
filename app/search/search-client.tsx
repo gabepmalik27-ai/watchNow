@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { MovieCard } from "@/components/movie/MovieCard";
 import { MovieDetailButton } from "@/components/movie/MovieDetailButton";
@@ -8,29 +9,31 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterChip } from "@/components/ui/FilterChip";
 import { Panel } from "@/components/ui/Panel";
-import { formatMovieMeta } from "@/lib/format";
+import { formatMatchHint, formatMovieMeta } from "@/lib/format";
 import { formatAudienceRating } from "@/lib/rating-scale";
 import { useMovieSearch } from "@/lib/use-movie-search";
-
-/**
- * People search isn't built yet, so this is a small local fixture just for
- * the People result group.
- */
-const PEOPLE = [
-  { name: "Christopher Nolan", role: "Director" },
-  { name: "Greta Gerwig", role: "Director" },
-  { name: "Denis Villeneuve", role: "Director" },
-  { name: "Yorgos Lanthimos", role: "Director" },
-];
 
 type SearchClientProps = {
   /** Every genre in the catalog, alphabetical (from getGenres on the server). */
   genres: string[];
+  /** The ?q= the page was rendered with (from the header search or a shared link). */
+  initialQuery: string;
 };
 
-export function SearchClient({ genres }: SearchClientProps) {
-  const [query, setQuery] = useState("");
+export function SearchClient({ genres, initialQuery }: SearchClientProps) {
+  const [query, setQuery] = useState(initialQuery);
   const [genre, setGenre] = useState<string | null>(null);
+
+  // A header search submitted while already on /search changes ?q without
+  // remounting this component, so adopt the new value. Typing here never
+  // writes the URL, so this only fires on navigation.
+  const urlQuery = useSearchParams().get("q") ?? "";
+  const [seenUrlQuery, setSeenUrlQuery] = useState(urlQuery);
+  if (urlQuery !== seenUrlQuery) {
+    setSeenUrlQuery(urlQuery);
+    setQuery(urlQuery);
+    setGenre(null);
+  }
   const search = useMovieSearch(query, genre);
 
   // The query the shown results belong to, so every result group updates together.
@@ -41,11 +44,6 @@ export function SearchClient({ genres }: SearchClientProps) {
     setGenre((current) => (current === next ? null : next));
   }
 
-  const matchedPeople = useMemo(() => {
-    if (!q) return [];
-    return PEOPLE.filter((p) => p.name.toLowerCase().includes(q));
-  }, [q]);
-
   const matchedGenres = useMemo(() => {
     if (!q) return [];
     return genres.filter((g) => g.toLowerCase().includes(q));
@@ -53,10 +51,12 @@ export function SearchClient({ genres }: SearchClientProps) {
 
   const [topResult, ...restMovies] = matchedMovies;
   const hasQuery = search.status !== "idle";
+  // Fuzzy rows only come back when nothing matched exactly, so they arrive all together.
+  const onlyCloseMatches =
+    matchedMovies.length > 0 && matchedMovies.every((movie) => movie.match_kind === "fuzzy");
   const noResults =
     search.status === "done" &&
     matchedMovies.length === 0 &&
-    matchedPeople.length === 0 &&
     matchedGenres.length === 0;
 
   return (
@@ -117,6 +117,12 @@ export function SearchClient({ genres }: SearchClientProps) {
           </EmptyState>
         ) : (
           <div className="flex flex-col gap-10">
+            {onlyCloseMatches ? (
+              <p className="text-muted">
+                No exact matches. Showing close matches for &quot;{search.query}&quot;.
+              </p>
+            ) : null}
+
             {topResult ? (
               <section className="flex flex-col gap-3">
                 <h2 className="text-lg font-bold text-text">Top result</h2>
@@ -133,6 +139,9 @@ export function SearchClient({ genres }: SearchClientProps) {
                     <p className="text-sm text-muted">
                       {formatMovieMeta(topResult)}
                     </p>
+                    {formatMatchHint(topResult) ? (
+                      <p className="text-sm text-muted">{formatMatchHint(topResult)}</p>
+                    ) : null}
                     <p className="text-sm text-text">{topResult.overview}</p>
                     <p className="text-sm text-rating">
                       {formatAudienceRating(topResult.vote_average)}
@@ -142,26 +151,12 @@ export function SearchClient({ genres }: SearchClientProps) {
               </section>
             ) : null}
 
-            {matchedPeople.length > 0 ? (
-              <section className="flex flex-col gap-3">
-                <h2 className="text-lg font-bold text-text">People</h2>
-                <div className="flex flex-wrap gap-3">
-                  {matchedPeople.map((person) => (
-                    <Panel key={person.name} className="p-4">
-                      <p className="font-semibold text-text">{person.name}</p>
-                      <p className="text-sm text-muted">{person.role}</p>
-                    </Panel>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
             {restMovies.length > 0 ? (
               <section className="flex flex-col gap-3">
                 <h2 className="text-lg font-bold text-text">Movies</h2>
                 <div className="grid grid-cols-2 gap-4 tablet:grid-cols-3 desktop:grid-cols-5">
                   {restMovies.map((movie) => (
-                    <MovieCard key={movie.id} movie={movie} />
+                    <MovieCard key={movie.id} movie={movie} hint={formatMatchHint(movie)} />
                   ))}
                 </div>
               </section>

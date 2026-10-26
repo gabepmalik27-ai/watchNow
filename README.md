@@ -47,6 +47,12 @@ First-time database setup:
 Open [http://localhost:3000](http://localhost:3000). The app is
 localhost-only for this phase — there's no deployment or CI yet.
 
+## Search
+
+All matching and ranking is one Postgres function, `search_catalog` (`supabase/migrations/0005_search.sql`), called through `supabase.rpc` by `lib/catalog.ts`. Titles, directors and cast are normalized (lowercase, accents and punctuation dropped, so "amelie" finds Amélie and "spider man" finds Spider-Man). A movie takes its best tier: exact title, title prefix, title word-start, title contains (3+ characters only), director word-start, cast word-start. Ties break on vote count. People searches return their movies with a "Directed by" / "Stars" hint. Only when nothing matches does a trigram-similarity fallback (threshold 0.3) offer close matches for typos.
+
+`npm run check-search` runs the acceptance cases against the live catalog with the anon key. **Run migration 0005 in the Supabase SQL editor before deploying**, or search will fail.
+
 ## Stack
 
 - Next.js 15 (App Router), TypeScript (strict), Tailwind CSS v4

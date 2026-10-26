@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { HeaderSearch } from "@/components/layout/HeaderSearch";
 import { useAuth } from "@/lib/auth";
 import { cx } from "@/lib/cx";
 import { NAV_ITEMS } from "@/lib/nav-items";
@@ -78,22 +79,6 @@ function SearchIconButton() {
         <path d="M11.5 11.5L15 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
     </button>
-  );
-}
-
-function SearchInputFull() {
-  const router = useRouter();
-  return (
-    <input
-      type="search"
-      placeholder="Search..."
-      onKeyDown={(event) => {
-        if (event.key === "Enter") {
-          router.push("/search");
-        }
-      }}
-      className="hidden h-11 w-56 rounded-full border border-border bg-panel px-4 text-sm text-text placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-electric desktop:block"
-    />
   );
 }
 
@@ -232,7 +217,7 @@ export function Header() {
         <DesktopNav pathname={pathname} />
         <div className="ml-auto flex items-center gap-3">
           <SearchIconButton />
-          <SearchInputFull />
+          <HeaderSearch />
           <AccountControl pathname={pathname} />
         </div>
       </div>
