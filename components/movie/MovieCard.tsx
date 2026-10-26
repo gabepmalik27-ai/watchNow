@@ -7,10 +7,12 @@ import type { CatalogMovie } from "@/types/movie";
 
 type MovieCardProps = {
   movie: CatalogMovie;
+  /** Muted line under the meta row, e.g. "Directed by Christopher Nolan" in search results. */
+  hint?: string | null;
   className?: string;
 };
 
-export function MovieCard({ movie, className }: MovieCardProps) {
+export function MovieCard({ movie, hint, className }: MovieCardProps) {
   const displayRating = formatAudienceRating(movie.vote_average);
 
   return (
@@ -36,6 +38,7 @@ export function MovieCard({ movie, className }: MovieCardProps) {
             {displayRating}
           </span>
         </div>
+        {hint ? <p className="mt-0.5 truncate text-xs text-muted">{hint}</p> : null}
       </div>
     </MovieDetailButton>
   );
