@@ -1,9 +1,15 @@
 // Run with: npm run seed -- --limit 100
-// Loads TMDB movies into public.movies. Safe to rerun: rows are upserted by id.
+// Loads TMDB movies into public.movies. Safe to rerun: rows are upserted by id,
+// so existing rows get fresh vote counts.
+//
+// Stratified: now playing + popular, then a broad base (every movie with
+// BASE_MIN_VOTES+ votes), then niche buckets that add films below the base
+// floor for groups the base under-represents. Floors and quotas were chosen
+// from `npm run measure` (2026-10-26).
 // Prints names, counts and TMDB ids only. Never prints env values.
 
 import { createClient } from "@supabase/supabase-js";
-import { fetchMovieRow, tmdb } from "@/lib/tmdb-ingest";
+import { fetchMovieRow, nonEnglishFilter, tmdb } from "@/lib/tmdb-ingest";
 import type { Database, MovieInsert } from "@/types/database";
 
 const REQUIRED_ENV = [
@@ -22,10 +28,30 @@ const CONCURRENCY = 8;
 const BATCH_SIZE = 200;
 const PROGRESS_EVERY = 250;
 const DISCOVER_PAGE_LIMIT = 500; // TMDB rejects page > 500
+const DISCOVER_PAGE_SIZE = 20;
+const DISCOVER_MAX_RESULTS = DISCOVER_PAGE_LIMIT * DISCOVER_PAGE_SIZE; // most one query can page through
+const DEFAULT_LIMIT = 25000; // safety cap on the deduped total
+
+const BASE_MIN_VOTES = 200;
+// Niche buckets only take films below the base floor, so every film a quota
+// admits is one the base didn't already have.
+const NICHE_MIN_VOTES = 50;
+const NICHE_MAX_VOTES = BASE_MIN_VOTES - 1;
+const RECENT_MONTHS = 18;
+const DOCUMENTARY_GENRE_ID = "99";
+const ANIMATION_GENRE_ID = "16";
+
+// Per-bucket caps, most-voted first. null = no cap beyond the floor.
+// Bucket sizes measured 2026-10-26 in brackets.
+const BASE_QUOTA: number | null = null; // [15,105]
+const DOCUMENTARY_QUOTA: number | null = null; // [1,343 below the base floor]
+const ANIMATION_QUOTA: number | null = null; // [1,668]
+const NON_ENGLISH_QUOTA: number | null = 4000; // [9,926]: the only bucket over 4,000
+const RECENT_QUOTA: number | null = null; // [576]
 
 function parseLimit(argv: string[]): number {
   const index = argv.indexOf("--limit");
-  if (index === -1) return 5000;
+  if (index === -1) return DEFAULT_LIMIT;
   const value = Number(argv[index + 1]);
   if (!Number.isInteger(value) || value < 1) {
     console.error("--limit must be a positive integer");
@@ -34,27 +60,133 @@ function parseLimit(argv: string[]): number {
   return value;
 }
 
-type TmdbListPage = { page: number; total_pages: number; results: { id: number }[] };
+type TmdbListPage = {
+  page: number;
+  total_pages: number;
+  total_results: number;
+  results: { id: number; vote_count: number }[];
+};
 
-/** Recent releases first (so they exist even with low vote counts), then the most-voted catalog. */
+type Bucket = {
+  name: string;
+  filter: Record<string, string>;
+  minVotes: number;
+  maxVotes: number | null;
+  quota: number | null;
+};
+
+const isoDate = (date: Date) => date.toISOString().slice(0, 10);
+
+function discoverPage(
+  filter: Record<string, string>,
+  minVotes: number,
+  maxVotes: number | null,
+  page: number,
+) {
+  return tmdb<TmdbListPage>("/discover/movie", {
+    ...filter,
+    sort_by: "vote_count.desc",
+    include_adult: "false",
+    "vote_count.gte": String(minVotes),
+    ...(maxVotes === null ? {} : { "vote_count.lte": String(maxVotes) }),
+    page: String(page),
+  });
+}
+
+/**
+ * Splits [minVotes, maxVotes] into vote-count ranges that each fit under
+ * discover's 10,000-result paging cap, highest range first, so paging them in
+ * order still walks the bucket most-voted first.
+ */
+async function voteRanges(
+  filter: Record<string, string>,
+  minVotes: number,
+  maxVotes: number,
+): Promise<[number, number][]> {
+  const { total_results } = await discoverPage(filter, minVotes, maxVotes, 1);
+  if (total_results <= DISCOVER_MAX_RESULTS || minVotes === maxVotes) return [[minVotes, maxVotes]];
+  const mid = Math.floor((minVotes + maxVotes) / 2);
+  return [
+    ...(await voteRanges(filter, mid + 1, maxVotes)),
+    ...(await voteRanges(filter, minVotes, mid)),
+  ];
+}
+
+/** A bucket's ids, most-voted first, up to its quota. */
+async function collectBucket(bucket: Bucket): Promise<number[]> {
+  let maxVotes = bucket.maxVotes;
+  if (maxVotes === null) {
+    // Open-ended bucket: its top vote count is the upper bound.
+    const top = await discoverPage(bucket.filter, bucket.minVotes, null, 1);
+    if (top.results.length === 0) return [];
+    maxVotes = top.results[0].vote_count;
+  }
+
+  const quota = bucket.quota ?? Number.POSITIVE_INFINITY;
+  const ids: number[] = [];
+  for (const [low, high] of await voteRanges(bucket.filter, bucket.minVotes, maxVotes)) {
+    if (ids.length >= quota) break;
+    const first = await discoverPage(bucket.filter, low, high, 1);
+    const pageCount = Math.min(
+      first.total_pages,
+      DISCOVER_PAGE_LIMIT,
+      Math.ceil((quota - ids.length) / DISCOVER_PAGE_SIZE),
+    );
+    const pages: number[][] = [first.results.map((movie) => movie.id)];
+    const rest = Array.from({ length: Math.max(pageCount - 1, 0) }, (_, index) => index + 2);
+    await runPool(rest, CONCURRENCY, async (page) => {
+      const result = await discoverPage(bucket.filter, low, high, page);
+      pages[page - 1] = result.results.map((movie) => movie.id);
+    });
+    ids.push(...pages.flat());
+  }
+  return ids.slice(0, quota);
+}
+
+/**
+ * Now playing + popular first (so recent releases exist even with low vote
+ * counts), then the base, then each niche bucket. Deduped, in that order.
+ */
 async function collectIds(limit: number): Promise<number[]> {
   const ids = new Set<number>();
   for (const path of ["/movie/now_playing", "/movie/popular"]) {
     const page = await tmdb<TmdbListPage>(path, { page: "1" });
     for (const movie of page.results) ids.add(movie.id);
   }
+  console.log(`  now playing + popular: ${ids.size}`);
 
-  for (let page = 1; ids.size < limit && page <= DISCOVER_PAGE_LIMIT; page += 1) {
-    const result = await tmdb<TmdbListPage>("/discover/movie", {
-      sort_by: "vote_count.desc",
-      "vote_count.gte": "200",
-      include_adult: "false",
-      page: String(page),
-    });
-    for (const movie of result.results) ids.add(movie.id);
-    if (page >= result.total_pages) break;
+  const today = new Date();
+  const recentStart = new Date(today);
+  recentStart.setMonth(recentStart.getMonth() - RECENT_MONTHS);
+  const niche = { minVotes: NICHE_MIN_VOTES, maxVotes: NICHE_MAX_VOTES };
+  const buckets: Bucket[] = [
+    { name: `base (≥${BASE_MIN_VOTES})`, filter: {}, minVotes: BASE_MIN_VOTES, maxVotes: null, quota: BASE_QUOTA },
+    { name: "Documentary", filter: { with_genres: DOCUMENTARY_GENRE_ID }, ...niche, quota: DOCUMENTARY_QUOTA },
+    { name: "Animation", filter: { with_genres: ANIMATION_GENRE_ID }, ...niche, quota: ANIMATION_QUOTA },
+    { name: "non-English", filter: await nonEnglishFilter(), ...niche, quota: NON_ENGLISH_QUOTA },
+    {
+      name: `Recent (${RECENT_MONTHS} mo)`,
+      filter: {
+        "primary_release_date.gte": isoDate(recentStart),
+        "primary_release_date.lte": isoDate(today),
+      },
+      ...niche,
+      quota: RECENT_QUOTA,
+    },
+  ];
+
+  for (const bucket of buckets) {
+    const bucketIds = await collectBucket(bucket);
+    const before = ids.size;
+    for (const id of bucketIds) ids.add(id);
+    const range = bucket.maxVotes === null ? `≥${bucket.minVotes}` : `${bucket.minVotes}–${bucket.maxVotes}`;
+    console.log(
+      `  ${bucket.name} [${range} votes${bucket.quota === null ? "" : `, quota ${bucket.quota}`}]: ` +
+        `${bucketIds.length} collected, ${ids.size - before} new`,
+    );
   }
 
+  console.log(`  deduped total: ${ids.size}${ids.size > limit ? ` (capped to --limit ${limit})` : ""}`);
   return [...ids].slice(0, limit);
 }
 

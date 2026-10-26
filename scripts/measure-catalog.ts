@@ -10,7 +10,7 @@
 //   accepts a pipe-separated OR list. non-English is every TMDB language
 //   except "en", OR-ed together.
 
-import { tmdb } from "@/lib/tmdb-ingest";
+import { nonEnglishFilter, tmdb } from "@/lib/tmdb-ingest";
 
 if (!process.env.TMDB_READ_TOKEN) {
   console.error("Missing env var: TMDB_READ_TOKEN (set it in .env.local)");
@@ -27,7 +27,6 @@ const TOTAL_RESULTS_CEILING = 20_000; // TMDB reports 20,001 for anything at or 
 const EARLIEST_RELEASE = "1870-01-01";
 
 type DiscoverCount = { total_results: number };
-type TmdbLanguage = { iso_639_1: string };
 
 const isoDate = (date: Date) => date.toISOString().slice(0, 10);
 
@@ -36,13 +35,6 @@ const recentStart = new Date(today);
 recentStart.setMonth(recentStart.getMonth() - RECENT_MONTHS);
 
 type Row = { label: string; filter: Record<string, string> };
-
-/** Every TMDB language code except English, as one OR filter. */
-async function nonEnglishFilter(): Promise<Record<string, string>> {
-  const languages = await tmdb<TmdbLanguage[]>("/configuration/languages");
-  const codes = languages.map((language) => language.iso_639_1).filter((code) => code !== "en");
-  return { with_original_language: codes.sort().join("|") };
-}
 
 const rows = (nonEnglish: Record<string, string>): Row[] => [
   { label: "all", filter: {} },

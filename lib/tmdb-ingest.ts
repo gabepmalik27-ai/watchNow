@@ -56,6 +56,19 @@ export async function tmdb<T>(path: string, params: Record<string, string> = {})
   }
 }
 
+type TmdbLanguage = { iso_639_1: string };
+
+/**
+ * A discover filter for every original language except English. discover
+ * ignores without_original_language, but with_original_language accepts a
+ * pipe-separated OR list, so this ORs every other TMDB language code.
+ */
+export async function nonEnglishFilter(): Promise<Record<string, string>> {
+  const languages = await tmdb<TmdbLanguage[]>("/configuration/languages");
+  const codes = languages.map((language) => language.iso_639_1).filter((code) => code !== "en");
+  return { with_original_language: codes.sort().join("|") };
+}
+
 export type TmdbMovieDetails = {
   id: number;
   title: string;
