@@ -53,11 +53,15 @@ All matching and ranking is one Postgres function, `search_catalog` (`supabase/m
 
 `npm run check-search` runs the acceptance cases against the live catalog with the anon key. **Run migration 0005 in the Supabase SQL editor before deploying**, or search will fail.
 
+## Import on search miss
+
+If a search of 3+ characters finds nothing, or only typo guesses, `/api/search` asks TMDB (`lib/catalog-admin.ts`), saves up to 5 films with 20+ votes to `public.movies` permanently, and returns them in the same response. It has a 4 second budget and never fails the search. A query that imports nothing is remembered for 10 minutes, and identical concurrent requests share one TMDB call; both caches are per serverless instance and best-effort. Responses where an import was attempted are `no-store` and carry `x-watchnow-imported: <n>`. This is the only app code that uses `SUPABASE_SERVICE_ROLE_KEY`, so **Vercel needs both `SUPABASE_SERVICE_ROLE_KEY` and `TMDB_READ_TOKEN` as server-only environment variables** (Production and Preview).
+
 ## Stack
 
 - Next.js 15 (App Router), TypeScript (strict), Tailwind CSS v4
 - Supabase Postgres (catalog, read through RLS with the anon key)
-- TMDB API (seed script only) and TMDB image CDN (posters)
+- TMDB API (the seed script, and import on search miss) and TMDB image CDN (posters)
 - React Context for in-session user state — no `localStorage`
 
 ## Team
