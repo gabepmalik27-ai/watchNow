@@ -28,7 +28,7 @@ The shell, the Supabase catalog and user accounts are done. We are now building 
 
 Constraints:
 - `SUPABASE_SERVICE_ROLE_KEY` and `TMDB_READ_TOKEN` are server-only. Never import them into client components or prefix them with `NEXT_PUBLIC_`.
-- The service role key is never used in app code (`app/`, `components/`, `lib/`, `middleware.ts`). Only `scripts/` may use it. App code talks to Supabase with the anon key, and RLS is what protects user data.
+- The service role key is never used in app code (`app/`, `components/`, `lib/`, `middleware.ts`), with exactly one exception: `lib/catalog-admin.ts` (import on search miss). That file starts with `import "server-only"`, writes only `public.movies`, and only rows built by `toRow` from TMDB data. `scripts/` may also use the key. Everything else in app code talks to Supabase with the anon key, and RLS is what protects user data.
 - Do not commit secrets. Only `.env.example` is tracked.
 - Schema changes go through migrations, not ad-hoc edits.
 

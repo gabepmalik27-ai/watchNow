@@ -12,6 +12,7 @@
     "seed": "tsx --env-file=.env.local scripts/seed-movies.ts",
     "check-secrets": "tsx --env-file=.env.local scripts/check-build-secrets.ts",
     "check-search": "tsx --env-file=.env.local scripts/check-search.ts",
+    "measure": "tsx --env-file=.env.local scripts/measure-catalog.ts",
     "eval": "tsx --env-file=.env.local scripts/eval-personas.ts"
   },
   "dependencies": {
