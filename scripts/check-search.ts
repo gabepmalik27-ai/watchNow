@@ -52,6 +52,23 @@ const topThreeAre =
     return top.some((row) => row.match_kind === kind) ? null : `expected a ${kind} hit in the top 3`;
   };
 
+/**
+ * At least `minHits` of the first `window` results are director hits naming
+ * `person`. Looser than topThreeAre: a title that contains the name (the
+ * documentary "Interstellar: Nolan's Odyssey") is a title-tier match and
+ * legitimately ranks above the director's own films.
+ */
+const directorHitsInTop =
+  (person: string, minHits: number, window: number): Check =>
+  (rows) => {
+    const hits = rows
+      .slice(0, window)
+      .filter((row) => row.match_kind === "director" && row.match_person?.includes(person)).length;
+    return hits >= minHits
+      ? null
+      : `expected at least ${minHits} director hits for "${person}" in the top ${window}, got ${hits}`;
+  };
+
 const cases: Case[] = [
   { name: "up", q: "up", check: topIs("Up") },
   { name: "us", q: "us", check: topIs("Us") },
@@ -67,7 +84,7 @@ const cases: Case[] = [
       (rows[0].match_kind === "title" ? null : "expected a title match"),
   },
   { name: "the godfather", q: "the godfather", check: topIs("The Godfather") },
-  { name: "nolan (director)", q: "nolan", check: topThreeAre("director", "Nolan") },
+  { name: "nolan (director)", q: "nolan", check: directorHitsInTop("Nolan", 3, 5) },
   { name: "tom hanks (cast)", q: "tom hanks", check: topThreeAre("cast", "Tom Hanks", ["director", "cast"]) },
   {
     name: "interstelar (typo, fuzzy)",
