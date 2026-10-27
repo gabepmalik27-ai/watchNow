@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { toRow, type TmdbMovieDetails } from "@/lib/tmdb-ingest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { tmdb, toRow, type TmdbMovieDetails } from "@/lib/tmdb-ingest";
 
 const SYNCED_AT = "2026-10-26T00:00:00.000Z";
 
@@ -116,5 +116,30 @@ describe("toRow", () => {
     );
     expect(row.director).toBeNull();
     expect(row.top_cast).toEqual([]);
+  });
+});
+
+describe("tmdb with an AbortSignal", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it("passes the signal to fetch and does not retry once it is aborted", async () => {
+    vi.stubEnv("TMDB_READ_TOKEN", "test-token");
+    const fetchMock = vi.fn((_url: URL, init?: RequestInit) => Promise.reject(init?.signal?.reason));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const controller = new AbortController();
+    controller.abort(new Error("deadline"));
+
+    await expect(tmdb("/search/movie", { query: "x" }, controller.signal)).rejects.toThrow("deadline");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][1]?.signal).toBe(controller.signal);
+  });
+
+  it("fails with a clear error when TMDB_READ_TOKEN is missing", async () => {
+    vi.stubEnv("TMDB_READ_TOKEN", "");
+    await expect(tmdb("/search/movie")).rejects.toThrow("TMDB_READ_TOKEN is not set");
   });
 });
