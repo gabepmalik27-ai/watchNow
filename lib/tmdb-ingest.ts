@@ -26,8 +26,15 @@ function tmdbToken(): string {
   return token;
 }
 
-/** GET a TMDB v4-token-authenticated endpoint. Waits out 429s; retries other failures twice. */
-export async function tmdb<T>(path: string, params: Record<string, string> = {}): Promise<T> {
+/**
+ * GET a TMDB v4-token-authenticated endpoint. Waits out 429s; retries other
+ * failures twice. An aborted `signal` stops the request and skips the retries.
+ */
+export async function tmdb<T>(
+  path: string,
+  params: Record<string, string> = {},
+  signal?: AbortSignal,
+): Promise<T> {
   const token = tmdbToken();
   const url = new URL(`${TMDB_BASE}${path}`);
   url.searchParams.set("language", "en-US");
@@ -39,6 +46,7 @@ export async function tmdb<T>(path: string, params: Record<string, string> = {})
     try {
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+        signal,
       });
       if (res.status === 429 && rateLimitWaits < MAX_RATE_LIMIT_WAITS) {
         rateLimitWaits += 1;
@@ -49,7 +57,7 @@ export async function tmdb<T>(path: string, params: Record<string, string> = {})
       if (!res.ok) throw new HttpError(res.status);
       return (await res.json()) as T;
     } catch (error) {
-      if (failures >= MAX_RETRIES) throw error;
+      if (signal?.aborted || failures >= MAX_RETRIES) throw error;
       failures += 1;
       await sleep(500 * failures);
     }
@@ -113,9 +121,15 @@ export function toRow(details: TmdbMovieDetails, syncedAt: string): MovieInsert 
 }
 
 /** One movie's details, credits and keywords, mapped to a public.movies row. */
-export async function fetchMovieRow(id: number, syncedAt: string): Promise<MovieInsert> {
-  const details = await tmdb<TmdbMovieDetails>(`/movie/${id}`, {
-    append_to_response: "credits,keywords",
-  });
+export async function fetchMovieRow(
+  id: number,
+  syncedAt: string,
+  signal?: AbortSignal,
+): Promise<MovieInsert> {
+  const details = await tmdb<TmdbMovieDetails>(
+    `/movie/${id}`,
+    { append_to_response: "credits,keywords" },
+    signal,
+  );
   return toRow(details, syncedAt);
 }
