@@ -13,7 +13,11 @@ import { tmdbImageLoader } from "@/lib/tmdb-image";
 import { useUserState } from "@/lib/user-state";
 import type { CatalogMovie } from "@/types/movie";
 
-/** "rate": the 1–10 control and Watched/Watchlist chips (Rate page). "browse": everywhere else. */
+/**
+ * Both modes show the 1–10 rating control to signed-in users. "rate" (Rate page) adds the
+ * Watched/Watchlist chips and focuses the control on open; "browse" (everywhere else) keeps
+ * the default focus and the Watchlist button.
+ */
 export type DetailMode = "browse" | "rate";
 
 /** How many cast names the dialog lists. */
