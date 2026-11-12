@@ -204,15 +204,6 @@ export function MovieDetailDialog({ movie, mode, onClose, children }: MovieDetai
               ) : (
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        signedIn ? closeAndGo(`/rate?movie=${current.id}`) : goToLogin()
-                      }
-                      className={PRIMARY_BUTTON}
-                    >
-                      {rating === null ? "Rate this movie" : "Update your rating"}
-                    </button>
                     {watched ? (
                       <span className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border px-4 text-sm font-medium text-muted">
                         <span aria-hidden="true">✓</span> Watched
@@ -238,15 +229,6 @@ export function MovieDetailDialog({ movie, mode, onClose, children }: MovieDetai
                       </button>
                     )}
                   </div>
-                  {signedIn && rating !== null ? (
-                    <button
-                      type="button"
-                      onClick={() => removeRating(current.id)}
-                      className={TEXT_BUTTON}
-                    >
-                      Remove rating
-                    </button>
-                  ) : null}
                 </div>
               )}
             </div>
