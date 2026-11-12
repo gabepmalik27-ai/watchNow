@@ -204,6 +204,11 @@ export function MovieDetailDialog({ movie, mode, onClose, children }: MovieDetai
               ) : (
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-wrap gap-2">
+                    {status === "signed-out" ? (
+                      <button type="button" onClick={goToLogin} className={PRIMARY_BUTTON}>
+                        Sign in to rate
+                      </button>
+                    ) : null}
                     {watched ? (
                       <span className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border px-4 text-sm font-medium text-muted">
                         <span aria-hidden="true">✓</span> Watched
