@@ -8,7 +8,7 @@ import { FilterChip } from "@/components/ui/FilterChip";
 import { RatingControl } from "@/components/ui/RatingControl";
 import { useAuth } from "@/lib/auth";
 import { formatMovieMeta } from "@/lib/format";
-import { formatAudienceRating, formatUserRating, ratingLabel } from "@/lib/rating-scale";
+import { formatAudienceRating } from "@/lib/rating-scale";
 import { tmdbImageLoader } from "@/lib/tmdb-image";
 import { useUserState } from "@/lib/user-state";
 import type { CatalogMovie } from "@/types/movie";
@@ -144,26 +144,15 @@ export function MovieDetailDialog({ movie, mode, onClose, children }: MovieDetai
                 ) : null}
               </div>
 
-              {current.vote_average !== null || (mode === "browse" && rating !== null) ? (
+              {current.vote_average !== null ? (
                 <div className="flex flex-col gap-1 text-sm">
-                  {current.vote_average !== null ? (
-                    <p className="text-muted">
-                      Audience{" "}
-                      <span className="font-semibold text-text">
-                        <span className="text-rating">{formatAudienceRating(current.vote_average)}</span>
-                      </span>
-                      {voteCount > 0 ? ` · from ${voteCount.toLocaleString("en-US")} ratings` : null}
-                    </p>
-                  ) : null}
-                  {mode === "browse" && rating !== null ? (
-                    <p className="text-muted">
-                      Your rating{" "}
-                      <span className="font-semibold text-text">
-                        {formatUserRating(rating)}
-                        <span className="font-normal text-muted"> · {ratingLabel(rating)}</span>
-                      </span>
-                    </p>
-                  ) : null}
+                  <p className="text-muted">
+                    Audience{" "}
+                    <span className="font-semibold text-text">
+                      <span className="text-rating">{formatAudienceRating(current.vote_average)}</span>
+                    </span>
+                    {voteCount > 0 ? ` · from ${voteCount.toLocaleString("en-US")} ratings` : null}
+                  </p>
                 </div>
               ) : null}
 
@@ -263,7 +252,7 @@ export function MovieDetailDialog({ movie, mode, onClose, children }: MovieDetai
             </div>
           </div>
 
-          {mode === "rate" ? (
+          {mode === "rate" || signedIn ? (
             // Full width, below the poster row: ten 44px targets don't fit in the info column.
             <div className="flex flex-col gap-2 px-4 pb-4 tablet:px-8 tablet:pb-8">
               <p className="text-sm font-semibold">Your rating</p>
