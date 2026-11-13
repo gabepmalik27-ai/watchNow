@@ -8,12 +8,16 @@ import { FilterChip } from "@/components/ui/FilterChip";
 import { RatingControl } from "@/components/ui/RatingControl";
 import { useAuth } from "@/lib/auth";
 import { formatMovieMeta } from "@/lib/format";
-import { formatAudienceRating, formatUserRating, ratingLabel } from "@/lib/rating-scale";
+import { formatAudienceRating } from "@/lib/rating-scale";
 import { tmdbImageLoader } from "@/lib/tmdb-image";
 import { useUserState } from "@/lib/user-state";
 import type { CatalogMovie } from "@/types/movie";
 
-/** "rate": the 1–10 control and Watched/Watchlist chips (Rate page). "browse": everywhere else. */
+/**
+ * Both modes show the 1–10 rating control to signed-in users. "rate" (Rate page) adds the
+ * Watched/Watchlist chips and focuses the control on open; "browse" (everywhere else) keeps
+ * the default focus and the Watchlist button.
+ */
 export type DetailMode = "browse" | "rate";
 
 /** How many cast names the dialog lists. */
@@ -144,26 +148,15 @@ export function MovieDetailDialog({ movie, mode, onClose, children }: MovieDetai
                 ) : null}
               </div>
 
-              {current.vote_average !== null || (mode === "browse" && rating !== null) ? (
+              {current.vote_average !== null ? (
                 <div className="flex flex-col gap-1 text-sm">
-                  {current.vote_average !== null ? (
-                    <p className="text-muted">
-                      Audience{" "}
-                      <span className="font-semibold text-text">
-                        <span className="text-rating">{formatAudienceRating(current.vote_average)}</span>
-                      </span>
-                      {voteCount > 0 ? ` · from ${voteCount.toLocaleString("en-US")} ratings` : null}
-                    </p>
-                  ) : null}
-                  {mode === "browse" && rating !== null ? (
-                    <p className="text-muted">
-                      Your rating{" "}
-                      <span className="font-semibold text-text">
-                        {formatUserRating(rating)}
-                        <span className="font-normal text-muted"> · {ratingLabel(rating)}</span>
-                      </span>
-                    </p>
-                  ) : null}
+                  <p className="text-muted">
+                    Audience{" "}
+                    <span className="font-semibold text-text">
+                      <span className="text-rating">{formatAudienceRating(current.vote_average)}</span>
+                    </span>
+                    {voteCount > 0 ? ` · from ${voteCount.toLocaleString("en-US")} ratings` : null}
+                  </p>
                 </div>
               ) : null}
 
@@ -215,15 +208,11 @@ export function MovieDetailDialog({ movie, mode, onClose, children }: MovieDetai
               ) : (
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        signedIn ? closeAndGo(`/rate?movie=${current.id}`) : goToLogin()
-                      }
-                      className={PRIMARY_BUTTON}
-                    >
-                      {rating === null ? "Rate this movie" : "Update your rating"}
-                    </button>
+                    {status === "signed-out" ? (
+                      <button type="button" onClick={goToLogin} className={PRIMARY_BUTTON}>
+                        Sign in to rate
+                      </button>
+                    ) : null}
                     {watched ? (
                       <span className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border px-4 text-sm font-medium text-muted">
                         <span aria-hidden="true">✓</span> Watched
@@ -249,21 +238,12 @@ export function MovieDetailDialog({ movie, mode, onClose, children }: MovieDetai
                       </button>
                     )}
                   </div>
-                  {signedIn && rating !== null ? (
-                    <button
-                      type="button"
-                      onClick={() => removeRating(current.id)}
-                      className={TEXT_BUTTON}
-                    >
-                      Remove rating
-                    </button>
-                  ) : null}
                 </div>
               )}
             </div>
           </div>
 
-          {mode === "rate" ? (
+          {mode === "rate" || signedIn ? (
             // Full width, below the poster row: ten 44px targets don't fit in the info column.
             <div className="flex flex-col gap-2 px-4 pb-4 tablet:px-8 tablet:pb-8">
               <p className="text-sm font-semibold">Your rating</p>
